@@ -1,0 +1,5 @@
+[Anjuta Plugin]
+_Name=JHBuild Build
+_Description=Plugin
+Location=anjuta-jhbuild:JHBuildPlugin
+Interfaces=IAnjutaEnvironment
