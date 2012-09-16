@@ -1,4 +1,4 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*- */
+/* -*- Mode: C; indent-spaces-mode: t; c-basic-offset: 4; tab-width: 4 -*- */
 /*
     plugin.h
     Copyright (C) 2012 Carl-Anton Ingmarsson
@@ -23,20 +23,27 @@
 
 #include <libanjuta/anjuta-plugin.h>
 
-#define ANJUTA_TYPE_PLUGIN_JHBUILD			(jhbuild_plugin_get_type (NULL))
-#define ANJUTA_PLUGIN_JHBUILD(o)			(G_TYPE_CHECK_INSTANCE_CAST ((o), ANJUTA_TYPE_PLUGIN_JHBUILD, JHBuildPlugin))
-#define ANJUTA_PLUGIN_JHBUILD_CLASS(k)		(G_TYPE_CHECK_CLASS_CAST ((k), ANJUTA_TYPE_PLUGIN_JHBUILD, JHBuildPluginClass))
-#define ANJUTA_IS_PLUGIN_JHBUILD(o)			(G_TYPE_CHECK_INSTANCE_TYPE ((o), ANJUTA_TYPE_PLUGIN_JHBUILD))
-#define ANJUTA_IS_PLUGIN_JHBUILD_CLASS(k)	(G_TYPE_CHECK_CLASS_TYPE ((k), ANJUTA_TYPE_PLUGIN_JHBUILD))
-#define ANJUTA_PLUGIN_JHBUILD_GET_CLASS(o)	(G_TYPE_INSTANCE_GET_CLASS ((o), ANJUTA_TYPE_PLUGIN_JHBUILD, JHBuildPluginClass))
+#define ANJUTA_TYPE_PLUGIN_JHBUILD          (jhbuild_plugin_get_type (NULL))
+#define ANJUTA_PLUGIN_JHBUILD(o)            (G_TYPE_CHECK_INSTANCE_CAST ((o), ANJUTA_TYPE_PLUGIN_JHBUILD, JHBuildPlugin))
+#define ANJUTA_PLUGIN_JHBUILD_CLASS(k)      (G_TYPE_CHECK_CLASS_CAST ((k), ANJUTA_TYPE_PLUGIN_JHBUILD, JHBuildPluginClass))
+#define ANJUTA_IS_PLUGIN_JHBUILD(o)         (G_TYPE_CHECK_INSTANCE_TYPE ((o), ANJUTA_TYPE_PLUGIN_JHBUILD))
+#define ANJUTA_IS_PLUGIN_JHBUILD_CLASS(k)   (G_TYPE_CHECK_CLASS_TYPE ((k), ANJUTA_TYPE_PLUGIN_JHBUILD))
+#define ANJUTA_PLUGIN_JHBUILD_GET_CLASS(o)  (G_TYPE_INSTANCE_GET_CLASS ((o), ANJUTA_TYPE_PLUGIN_JHBUILD, JHBuildPluginClass))
 
 typedef struct _JHBuildPlugin JHBuildPlugin;
 typedef struct _JHBuildPluginClass JHBuildPluginClass;
 
 struct _JHBuildPlugin
 {
+    AnjutaPlugin parent;
+
+    AnjutaShell* shell;
+
+    char** envvars;
+    char* prefix;
+    char* libdir;
 };
 
-extern GType jhbuild_plugin_get_type 				(GTypeModule *module);
+extern GType jhbuild_plugin_get_type(GTypeModule *module);
 
 #endif

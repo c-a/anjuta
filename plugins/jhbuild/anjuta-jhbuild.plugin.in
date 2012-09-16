@@ -2,4 +2,5 @@
 _Name=JHBuild Build
 _Description=Plugin
 Location=anjuta-jhbuild:JHBuildPlugin
+Icon=anjuta-jhbuild-plugin-48.png
 Interfaces=IAnjutaEnvironment
