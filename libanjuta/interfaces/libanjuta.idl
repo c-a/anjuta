@@ -834,6 +834,19 @@ interface IAnjutaEnvironment
 	* Returns: The directory path outside the environment
 	*/
 	gchar* get_real_directory (gchar *dir);
+
+	/**
+	* ianjuta_environment_get_environment_variables:
+	* @obj: Self
+	* @err: Error propagation and reporting.
+	*
+	* Get the environment variables that should be used when building and
+	* running a program in the environment.
+	*
+	* Returns: (transfer none) A string array of environment variables of
+	* the form KEY=VALUE. The array is owned by @obj and should not be freed.
+	*/
+	gchar** get_environment_variables ();
 }
 
 /**
