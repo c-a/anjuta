@@ -1113,6 +1113,8 @@ build_configure_dialog (BasicAutotoolsPlugin *plugin, BuildFunc func, GFile *fil
 	GValue value = {0,};
 	const gchar *old_config_name;
 	BuildContext* context = NULL;
+	IAnjutaEnvironment *environment;
+	gchar **base_envvars = NULL;
 
 	run_autogen = !directory_has_file (plugin->project_root_dir, "configure");
 
@@ -1124,8 +1126,11 @@ build_configure_dialog (BasicAutotoolsPlugin *plugin, BuildFunc func, GFile *fil
 	project_root = g_value_get_string (&value);
 	parent = GTK_WINDOW (ANJUTA_PLUGIN(plugin)->shell);
 
+	if ((environment = anjuta_shell_get_interface (ANJUTA_PLUGIN (plugin)->shell, IAnjutaEnvironment, NULL)))
+		base_envvars = ianjuta_environment_get_environment_variables (environment, NULL);
+
 	old_config_name = build_configuration_get_name (build_configuration_list_get_selected (plugin->configurations));
-	if (build_dialog_configure (parent, project_root, plugin->configurations, &run_autogen))
+	if (build_dialog_configure (parent, project_root, plugin->configurations, &run_autogen, (const gchar**)base_envvars))
 	{
 		BuildConfiguration *config;
 		GFile *build_file;

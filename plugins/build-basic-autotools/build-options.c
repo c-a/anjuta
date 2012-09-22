@@ -313,7 +313,9 @@ fill_dialog (BuildConfigureDialog *dlg)
  *---------------------------------------------------------------------------*/
 
 gboolean
-build_dialog_configure (GtkWindow* parent, const gchar *project_root_uri, BuildConfigurationList *config_list, gboolean *run_autogen)
+build_dialog_configure (GtkWindow* parent, const gchar *project_root_uri,
+                        BuildConfigurationList *config_list, gboolean *run_autogen,
+                        const gchar **base_envvars)
 {
 	GtkBuilder* bxml;
 	BuildConfigureDialog dlg;
@@ -336,6 +338,9 @@ build_dialog_configure (GtkWindow* parent, const gchar *project_root_uri, BuildC
 	
 	dlg.config_list = config_list;
 	dlg.project_uri = project_root_uri;
+
+	if (base_envvars)
+		anjuta_environment_editor_set_base_variables (ANJUTA_ENVIRONMENT_EDITOR(dlg.env_editor), base_envvars);
 
 	/* Set run autogen option */	
 	if (*run_autogen) gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (dlg.autogen), TRUE);

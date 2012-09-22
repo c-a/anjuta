@@ -28,6 +28,7 @@
 gboolean build_dialog_configure (GtkWindow* parent,
 								 const gchar *project_root_uri,
 								 BuildConfigurationList *configs,
-								 gboolean *run_autogen);
+								 gboolean *run_autogen,
+								 const gchar **base_envvars);
 
 #endif /* BUILD_OPTIONS_H */
