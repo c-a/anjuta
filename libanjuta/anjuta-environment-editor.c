@@ -27,6 +27,15 @@ enum
 	LAST_SIGNAL
 };
 
+enum
+{
+	PROP_O,
+	PROP_BASE_VARIABLES,
+	N_PROPERTIES
+};
+
+static GParamSpec* obj_properties[N_PROPERTIES] = { NULL, };
+
 enum {
 	ENV_NAME_COLUMN = 0,
 	ENV_VALUE_COLUMN,
@@ -113,30 +122,54 @@ anjuta_gtk_tree_model_find_string (GtkTreeModel *model, GtkTreeIter *parent,
  *---------------------------------------------------------------------------*/
 
 static void
-load_environment_variables (AnjutaEnvironmentEditor *editor, GtkListStore *store)
+load_environment_variables (AnjutaEnvironmentEditor *editor, GtkListStore *store,
+                            const gchar **base_variables)
 {
 	GtkTreeIter iter;
 	gchar **var;
-	gchar **list;
-	
-	/* Load current environment variables */
-	list = g_listenv();
-	var = list;
-	if (var)
+
+	if (base_variables)
 	{
-		for (; *var != NULL; var++)
+		const gchar **variable = base_variables;
+		for (; *variable != NULL; variable++)
 		{
-			const gchar *value = g_getenv (*var);
-			gtk_list_store_prepend (store, &iter);
-			gtk_list_store_set (store, &iter,
-								ENV_NAME_COLUMN, *var,
-								ENV_VALUE_COLUMN, value,
-								ENV_DEFAULT_VALUE_COLUMN, value,
-								ENV_COLOR_COLUMN, ENV_DEFAULT_COLOR,
-								-1);
+			gchar **value = g_strsplit(*variable, "=", 2);
+			if (value && g_strv_length (value) == 2)
+			{
+				gtk_list_store_prepend (store, &iter);
+				gtk_list_store_set (store, &iter,
+				                    ENV_NAME_COLUMN, value[0],
+				                    ENV_VALUE_COLUMN, value[1],
+				                    ENV_DEFAULT_VALUE_COLUMN, value[1],
+				                    ENV_COLOR_COLUMN, ENV_DEFAULT_COLOR,
+				                    -1);
+				g_strfreev (value);
+			}
 		}
 	}
-	g_strfreev (list);
+	else
+	{
+		gchar **list;
+
+		/* Load current environment variables */
+		list = g_listenv();
+		var = list;
+		if (var)
+		{
+			for (; *var != NULL; var++)
+			{
+				const gchar *value = g_getenv (*var);
+				gtk_list_store_prepend (store, &iter);
+				gtk_list_store_set (store, &iter,
+				                    ENV_NAME_COLUMN, *var,
+				                    ENV_VALUE_COLUMN, value,
+				                    ENV_DEFAULT_VALUE_COLUMN, value,
+				                    ENV_COLOR_COLUMN, ENV_DEFAULT_COLOR,
+				                    -1);
+			}
+		}
+		g_strfreev (list);
+	}
 	
 	/* Load user environment variables */
 	var = editor->variables;
@@ -502,7 +535,7 @@ anjuta_environment_editor_dispose (GObject *object)
 {
 	AnjutaEnvironmentEditor* editor = ANJUTA_ENVIRONMENT_EDITOR (object);
 
-	if (editor->model != NULL) g_object_unref (editor->model);
+	g_clear_object (&editor->model);
 
 	G_OBJECT_CLASS (anjuta_environment_editor_parent_class)->dispose (object);
 }
@@ -516,6 +549,25 @@ anjuta_environment_editor_finalize (GObject *object)
 	editor->variables = NULL;
 
 	G_OBJECT_CLASS (anjuta_environment_editor_parent_class)->finalize (object);
+}
+
+static void
+anjuta_environment_editor_set_property (GObject      *object,
+                                        guint         property_id,
+                                        const GValue *value,
+                                        GParamSpec   *pspec)
+{
+	AnjutaEnvironmentEditor *editor = ANJUTA_ENVIRONMENT_EDITOR (object);
+	
+	switch (property_id)
+	{
+		case PROP_BASE_VARIABLES:
+			anjuta_environment_editor_set_base_variables(editor, g_value_get_object (value));
+			break;
+
+		default:
+			g_assert_not_reached ();
+	}
 }
 
 static void
@@ -534,8 +586,6 @@ anjuta_environment_editor_init (AnjutaEnvironmentEditor *editor)
 	GtkCellRenderer* renderer;
 	GtkTreeSelection *selection;
 
-	editor->variables = NULL;
-	
 	gtk_widget_set_has_window (GTK_WIDGET (editor), FALSE);
 	gtk_widget_set_redraw_on_allocate (GTK_WIDGET (editor), FALSE);
 
@@ -577,7 +627,7 @@ anjuta_environment_editor_init (AnjutaEnvironmentEditor *editor)
 												G_TYPE_STRING,
 												G_TYPE_BOOLEAN));
 	gtk_tree_view_set_model (GTK_TREE_VIEW (treeview), model);
-	load_environment_variables (editor, GTK_LIST_STORE (model));
+	load_environment_variables (editor, GTK_LIST_STORE (model), NULL);
 	editor->model = g_object_ref (model);
 	
 	renderer = gtk_cell_renderer_text_new ();
@@ -631,12 +681,26 @@ anjuta_environment_editor_class_init (AnjutaEnvironmentEditorClass *klass)
 	              g_cclosure_marshal_VOID__VOID,
 	              G_TYPE_NONE, 0);
 
+	object_class->set_property = anjuta_environment_editor_set_property;
 	object_class->dispose = anjuta_environment_editor_dispose;
 	object_class->finalize = anjuta_environment_editor_finalize;
 	
 	widget_class->size_allocate = anjuta_environment_editor_size_allocate;
 	widget_class->get_preferred_width = anjuta_environment_editor_get_preferred_width;
 	widget_class->get_preferred_height = anjuta_environment_editor_get_preferred_height;
+
+	/**
+	 * AnjutaEnvironmentEditor::base-variables:
+	 * 
+	 * Set the base environment variables that will be shown in the editor.
+	 */
+	obj_properties[PROP_BASE_VARIABLES] =
+		g_param_spec_boxed ("base-variables", "Base environment variables",
+		                    "The base environment variables that should be shown in the editor",
+		                    G_TYPE_STRV,
+		                    G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS);
+
+	g_object_class_install_properties (object_class, N_PROPERTIES, obj_properties);
 }
 
 /* Public functions
@@ -651,6 +715,37 @@ GtkWidget*
 anjuta_environment_editor_new (void)
 {
 	return GTK_WIDGET (g_object_new (ANJUTA_TYPE_ENVIRONMENT_EDITOR, NULL));
+}
+
+/*
+ * anjuta_environment_editor_set_base_variables:
+ * @editor: A AnjutaEnvironmentEditor widget
+ * @base_variables A string array containing environment variables of the form
+ * KEY=VALUE.
+ *
+ * Sets the base environment variables to show in the widget. This will clear
+ * all previous environment variables that was loaded or set by the user.
+ */
+void
+anjuta_environment_editor_set_base_variables (AnjutaEnvironmentEditor *editor,
+                                              const gchar **base_variables)
+{
+	g_return_if_fail (ANJUTA_IS_ENVIRONMENT_EDITOR (editor));
+
+	GtkTreeModel *model;
+
+	/* Fill environment variable list */
+	model = GTK_TREE_MODEL (gtk_list_store_new (ENV_N_COLUMNS,
+	                                            G_TYPE_STRING,
+	                                            G_TYPE_STRING,
+	                                            G_TYPE_STRING,
+	                                            G_TYPE_STRING,
+	                                            G_TYPE_BOOLEAN));
+	gtk_tree_view_set_model (editor->treeview, model);
+	load_environment_variables (editor, GTK_LIST_STORE (model), base_variables);
+
+	g_clear_object (&editor->model);
+	editor->model = g_object_ref (model);
 }
 
 /*

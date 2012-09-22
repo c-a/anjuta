@@ -46,6 +46,7 @@ struct _AnjutaEnvironmentEditorClass
 GType anjuta_environment_editor_get_type (void) G_GNUC_CONST;
 
 GtkWidget* anjuta_environment_editor_new (void);
+void anjuta_environment_editor_set_base_variables (AnjutaEnvironmentEditor *editor, const gchar **base_variables);
 void anjuta_environment_editor_set_variable (AnjutaEnvironmentEditor *editor, const gchar *variable);
 gchar** anjuta_environment_editor_get_all_variables (AnjutaEnvironmentEditor *editor);
 gchar** anjuta_environment_editor_get_modified_variables (AnjutaEnvironmentEditor *editor);
