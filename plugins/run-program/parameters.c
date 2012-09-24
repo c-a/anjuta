@@ -31,6 +31,7 @@
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/anjuta-environment-editor.h>
 #include <libanjuta/interfaces/ianjuta-project-manager.h>
+#include <libanjuta/interfaces/ianjuta-environment.h>
 
 /*---------------------------------------------------------------------------*/
 
@@ -210,6 +211,7 @@ run_dialog_init (RunDialog *dlg, RunProgramPlugin *plugin)
 	GValue value = {0,};
 	const gchar *project_root_uri;
 	GError* error = NULL;
+	IAnjutaEnvironment *environment;
 	gchar **variable;
 
 	parent = GTK_WINDOW (ANJUTA_PLUGIN (plugin)->shell);
@@ -328,6 +330,16 @@ run_dialog_init (RunDialog *dlg, RunProgramPlugin *plugin)
 		}
 	}
 	g_object_unref (model);
+
+	/* Get base environment variables from IAnjutaEnvironment implementation if available */
+	environment = anjuta_shell_get_interface(anjuta_plugin_get_shell (ANJUTA_PLUGIN (plugin)),
+	                                         IAnjutaEnvironment, NULL);
+	if (environment)
+	{
+		gchar **base_variables = ianjuta_environment_get_environment_variables (environment, NULL);
+		if (base_variables)
+			anjuta_environment_editor_set_base_variables (dlg->vars, (const gchar**)base_variables);
+	}
 
 	/* Set stored user modified environment variables */
 	if (plugin->environment_vars)

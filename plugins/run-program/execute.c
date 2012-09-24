@@ -29,6 +29,7 @@
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/interfaces/ianjuta-terminal.h>
 #include <libanjuta/interfaces/ianjuta-builder.h>
+#include <libanjuta/interfaces/ianjuta-environment.h>
 
 #include <signal.h>
 
@@ -160,16 +161,39 @@ run_plugin_child_free (RunProgramPlugin *plugin, GPid pid)
 
 /* Merge some environment variable in env with current environment */
 static gchar **
-merge_environment_variable (gchar ** env)
+merge_environment_variable (RunProgramPlugin *plugin, gchar ** env)
 {
+	IAnjutaEnvironment *environment;
+	
 	gsize len;
-	gchar **new_env;
 	gchar **old_env;
+	gboolean free_old_env;
+	gchar **new_env = NULL;
 	gchar **p;
 	gint i;
 
+	environment = anjuta_shell_get_interface (anjuta_plugin_get_shell (ANJUTA_PLUGIN (plugin)),
+	                                          IAnjutaEnvironment, NULL);
+	if (environment)
+	{
+		old_env = ianjuta_environment_get_environment_variables (environment, NULL);
+		if (old_env)
+		{
+			free_old_env = FALSE;
+			len = old_env ? g_strv_length (old_env) : 0;
+			len += env ? g_strv_length (env) : 0;
+			len ++;
+			new_env = g_new (char *, len);
+		}
+	}
+
+	if (!old_env)
+	{
+		free_old_env = TRUE;
+		old_env = g_get_environ ();
+	}
+
 	/* Create environment variable array */
-	old_env = g_listenv();
 	len = old_env ? g_strv_length (old_env) : 0;
 	len += env ? g_strv_length (env) : 0;
 	len ++;
@@ -179,31 +203,34 @@ merge_environment_variable (gchar ** env)
 	i = 0;
 	for (p = old_env; *p; p++)
 	{
-		const gchar *value;
+		gchar **variable;
 
-		value = g_getenv (*p);
-		if (env != NULL)
+		variable = g_strsplit(*p, "=", 2);
+		if (variable && g_strv_length (variable) == 2)
 		{
+			const gchar *key = variable[0];
+			const gchar *value = variable[1];
 			gchar **q;
 
 			for (q = env; *q; q++)
 			{
 				gsize len;
 
-				len = strlen (*p);
+				len = strlen (key);
 				if ((strlen (*q) > len + 1) &&
-					(strncmp (*q, *p, len) == 0) &&
-					((*q)[len] == '='))
+				    (strncmp (*q, key, len) == 0) &&
+				    ((*q)[len] == '='))
 				{
 					value = *q + len + 1;
 					break;
 				}
 			}
-		}
 
-		new_env[i++] = g_strconcat (*p, "=", value, NULL);
+			new_env[i++] = g_strconcat (variable[0], "=", value, NULL);
+		}
 	}
-	g_strfreev (old_env);
+	if (free_old_env)
+		g_strfreev (old_env);
 
 	/* Add new user variable */
 	if (env)
@@ -284,7 +311,7 @@ execute_with_terminal (RunProgramPlugin *plugin,
 			}
 
 			/* Create environment variable array with new user variable */
-			new_env = merge_environment_variable (env);
+			new_env = merge_environment_variable (plugin, env);
 
 			if (g_spawn_async (dir, argv, new_env, G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,
 								NULL, NULL, &pid, NULL))
@@ -335,7 +362,7 @@ execute_without_terminal (RunProgramPlugin *plugin,
 	gchar **new_env;
 
 	/* Create environment variable array with new user variable */
-	new_env = merge_environment_variable (env);
+	new_env = merge_environment_variable (plugin, env);
 
 	/* Run user program using in a shell */
 	user_shell = anjuta_util_user_shell ();
