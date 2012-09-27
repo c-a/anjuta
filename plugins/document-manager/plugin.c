@@ -1296,11 +1296,14 @@ on_window_key_press_event (AnjutaShell *shell,
 	case ID_NEXTBUFFER:
 	case ID_PREVBUFFER:
 	{
-		GtkNotebook *notebook = GTK_NOTEBOOK (plugin->docman);
-		gint pages_nb;
-		gint cur_page;
+		gboolean res;
+		
+		if (global_keymap[i].id == ID_NEXTBUFFER)
+			res = anjuta_docman_next_page (ANJUTA_DOCMAN(plugin->docman));
+		else
+			res = anjuta_docman_previous_page (ANJUTA_DOCMAN(plugin->docman));
 
-		if ((cur_page = gtk_notebook_get_current_page (notebook)) == -1);
+		if (!res)
 			return FALSE;
 
 		if (!plugin->g_tabbing)
@@ -1308,27 +1311,16 @@ on_window_key_press_event (AnjutaShell *shell,
 			plugin->g_tabbing = TRUE;
 		}
 
-		pages_nb = gtk_notebook_get_n_pages (notebook);
-
-		if (global_keymap[i].id == ID_NEXTBUFFER)
-			cur_page = (cur_page < pages_nb - 1) ? cur_page + 1 : 0;
-		else
-			cur_page = cur_page ? cur_page - 1 : pages_nb -1;
-
-		gtk_notebook_set_current_page (notebook, cur_page);
-
 		break;
 	}
 	default:
 		if (global_keymap[i].id >= ID_FIRSTBUFFER &&
 		  global_keymap[i].id <= (ID_FIRSTBUFFER + 9))
 		{
-			GtkNotebook *notebook = GTK_NOTEBOOK (plugin->docman);
 			gint page_req = global_keymap[i].id - ID_FIRSTBUFFER;
 
-			if (gtk_notebook_get_n_pages (notebook) == 0);
+			if (!anjuta_docman_set_page (ANJUTA_DOCMAN(plugin->docman), page_req))
 				return FALSE;
-			gtk_notebook_set_current_page(notebook, page_req);
 		}
 		else
 			return FALSE;
@@ -1486,6 +1478,7 @@ on_save_prompt (AnjutaShell *shell, AnjutaSavePrompt *save_prompt,
 static void
 docman_plugin_set_tab_pos (DocmanPlugin *ep)
 {
+#if 0
 	if (g_settings_get_boolean (ep->settings, EDITOR_TABS_HIDE))
 	{
 		gtk_notebook_set_show_tabs (GTK_NOTEBOOK (ep->docman), FALSE);
@@ -1513,6 +1506,7 @@ docman_plugin_set_tab_pos (DocmanPlugin *ep)
 		}
 		gtk_notebook_set_tab_pos (GTK_NOTEBOOK (ep->docman), pos);
 	}
+#endif
 }
 
 static void

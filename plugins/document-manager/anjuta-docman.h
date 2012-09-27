@@ -40,14 +40,15 @@ typedef struct _AnjutaDocmanPriv AnjutaDocmanPriv;
 typedef struct _AnjutaDocmanClass AnjutaDocmanClass;
 
 struct _AnjutaDocman {
-	GtkNotebook parent;
+	GtkGrid parent;
+
 	AnjutaDocmanPriv *priv;
 	AnjutaShell *shell;
 	gboolean maximized;
 };
 
 struct _AnjutaDocmanClass {
-	GtkNotebookClass parent_class;
+	GtkGridClass parent_class;
 	
 	/* Signals */
 	void (*document_added) (IAnjutaDocument *document);
@@ -110,4 +111,9 @@ gboolean anjuta_docman_save_document (AnjutaDocman *docman, IAnjutaDocument *doc
 gboolean anjuta_docman_save_document_as (AnjutaDocman *docman,
 										IAnjutaDocument *doc,
 										GtkWidget *parent_window);
+
+gboolean anjuta_docman_next_page (AnjutaDocman *docman);
+gboolean anjuta_docman_previous_page (AnjutaDocman *docman);
+gboolean anjuta_docman_set_page (AnjutaDocman *docman, gint page);
+
 #endif
