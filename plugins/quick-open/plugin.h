@@ -44,6 +44,8 @@ struct _QuickOpenPlugin
     gint uiid;
     GtkActionGroup* action_group;
 
+    guint project_watch_id;
+
     QuickOpenDialog* dialog;
 };
 

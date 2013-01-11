@@ -167,7 +167,8 @@ quick_open_plugin_setup_project_handling(QuickOpenPlugin* self)
     g_return_if_fail(project_manager);
 
     /* Connect to project manager events. */
-    anjuta_plugin_add_watch(ANJUTA_PLUGIN(self), IANJUTA_PROJECT_MANAGER_CURRENT_PROJECT,
+    self->project_watch_id = anjuta_plugin_add_watch(ANJUTA_PLUGIN(self),
+        IANJUTA_PROJECT_MANAGER_CURRENT_PROJECT,
         current_project_added, current_project_removed, self);
 
     g_signal_connect(project_manager, "project-loaded",
@@ -284,8 +285,9 @@ quick_open_plugin_deactivate(AnjutaPlugin *plugin)
 
     anjuta_ui_unmerge(ui, self->uiid);
 
-    /* Disconnect signals. */
+    anjuta_plugin_remove_watch(plugin, self->project_watch_id, FALSE);
 
+    /* Disconnect signals. */
     project_manager = anjuta_shell_get_interface(ANJUTA_PLUGIN(self)->shell,
         IAnjutaProjectManager, NULL);
     if (project_manager)
