@@ -421,6 +421,15 @@ on_filter_changed(GtkEntry* filter_entry, gpointer user_data)
         filter_changed_timeout, self);
 }
 
+static void
+on_dialog_show(GtkWidget* widget, gpointer user_data)
+{
+    QuickOpenDialog* self = user_data;
+    QuickOpenDialogPrivate* priv = self->priv;
+
+    gtk_widget_grab_focus(GTK_WIDGET(priv->filter_entry));
+}
+
 GObject*
 quick_open_dialog_get_selected_object(QuickOpenDialog* self)
 {
@@ -766,11 +775,13 @@ quick_open_dialog_init (QuickOpenDialog* self)
     gtk_window_set_destroy_with_parent(GTK_WINDOW(self), TRUE);
     gtk_widget_set_size_request(GTK_WIDGET(self), 400, 300);
 
-    gtk_dialog_add_button (GTK_DIALOG(self), GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL);
-    gtk_dialog_add_button (GTK_DIALOG(self), GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT);
+    gtk_dialog_add_button(GTK_DIALOG(self), GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL);
+    gtk_dialog_add_button(GTK_DIALOG(self), GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT);
+
+    g_signal_connect(self, "show", G_CALLBACK(on_dialog_show), self);
 
     builder = gtk_builder_new();
-    if (!gtk_builder_add_from_file (builder, BUILDER_FILE, &err))
+    if (!gtk_builder_add_from_file(builder, BUILDER_FILE, &err))
         g_error("Couldn't load builder file: %s", err->message);
 
     grid = GTK_GRID(gtk_builder_get_object(builder, "grid"));
@@ -779,6 +790,7 @@ quick_open_dialog_init (QuickOpenDialog* self)
 
     /* Add search entry here since glade doesn't support it yet. */
     priv->filter_entry = GTK_ENTRY(gtk_search_entry_new());
+    gtk_widget_show(GTK_WIDGET(priv->filter_entry));
     gtk_grid_attach(grid, GTK_WIDGET(priv->filter_entry), 0, 0, 1, 1);
     g_signal_connect(priv->filter_entry, "changed",
         G_CALLBACK(on_filter_changed), self);

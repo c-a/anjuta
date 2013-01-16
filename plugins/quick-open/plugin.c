@@ -81,7 +81,7 @@ on_dialog_response(GtkDialog* dialog, gint response_id, gpointer user_data)
 static void
 on_quick_open_activate(GtkAction *action, QuickOpenPlugin *self)
 {
-    gtk_widget_show_all(GTK_WIDGET(self->dialog));
+    gtk_widget_show(GTK_WIDGET(self->dialog));
 }
 
 static void
