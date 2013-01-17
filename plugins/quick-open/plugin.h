@@ -22,6 +22,8 @@
 #define _PLUGIN_H_
 
 #include <libanjuta/anjuta-plugin.h>
+#include <libanjuta/interfaces/ianjuta-document-manager.h>
+#include <libanjuta/interfaces/ianjuta-project-manager.h>
 
 #include "quick-open-dialog.h"
 
@@ -44,7 +46,10 @@ struct _QuickOpenPlugin
     gint uiid;
     GtkActionGroup* action_group;
 
+    IAnjutaProjectManager* project_manager;
     guint project_watch_id;
+
+    IAnjutaDocumentManager* docman;
 
     QuickOpenDialog* dialog;
 };

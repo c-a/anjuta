@@ -23,10 +23,8 @@
 #include "plugin.h"
 
 #include <libanjuta/anjuta-debug.h>
-#include <libanjuta/interfaces/ianjuta-document-manager.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-file-loader.h>
-#include <libanjuta/interfaces/ianjuta-project-manager.h>
 
 #include <signal.h>
 
@@ -54,13 +52,7 @@ on_dialog_response(GtkDialog* dialog, gint response_id, gpointer user_data)
 
         if (IANJUTA_IS_DOCUMENT(object))
         {
-            IAnjutaDocumentManager* docman;
-
-            docman = anjuta_shell_get_interface (ANJUTA_PLUGIN (self)->shell,
-                IAnjutaDocumentManager, NULL);
-            g_return_if_fail (docman != NULL);
-
-            ianjuta_document_manager_set_current_document(docman,
+            ianjuta_document_manager_set_current_document(self->docman,
                 IANJUTA_DOCUMENT(object), NULL);
         }
         else if (G_IS_FILE(object))
@@ -159,22 +151,23 @@ current_project_removed(AnjutaPlugin *plugin, const char *name, gpointer user_da
 static void
 quick_open_plugin_setup_project_handling(QuickOpenPlugin* self)
 {
-    IAnjutaProjectManager* project_manager;
     IAnjutaProject* project;
 
-    project_manager = anjuta_shell_get_interface (ANJUTA_PLUGIN(self)->shell,
+    self->project_manager = anjuta_shell_get_interface (ANJUTA_PLUGIN(self)->shell,
         IAnjutaProjectManager, NULL);
-    g_return_if_fail(project_manager);
+    g_return_if_fail(self->project_manager);
+
+    g_object_add_weak_pointer(G_OBJECT(self->project_manager), (void**)&self->project_manager);
 
     /* Connect to project manager events. */
     self->project_watch_id = anjuta_plugin_add_watch(ANJUTA_PLUGIN(self),
         IANJUTA_PROJECT_MANAGER_CURRENT_PROJECT,
         current_project_added, current_project_removed, self);
 
-    g_signal_connect(project_manager, "project-loaded",
+    g_signal_connect(self->project_manager, "project-loaded",
         G_CALLBACK (on_project_loaded), self);
 
-    project = ianjuta_project_manager_get_current_project (project_manager, NULL);
+    project = ianjuta_project_manager_get_current_project (self->project_manager, NULL);
     if (project)
         quick_open_plugin_project_added(self, project);
 }
@@ -198,14 +191,15 @@ on_document_added(IAnjutaDocumentManager* docman, IAnjutaDocument* doc, gpointer
 static void
 quick_open_plugin_setup_document_handling(QuickOpenPlugin* self)
 {
-    IAnjutaDocumentManager* docman;
     GList* documents, *l;
 
-    docman = anjuta_shell_get_interface(ANJUTA_PLUGIN(self)->shell,
+    self->docman = anjuta_shell_get_interface(ANJUTA_PLUGIN(self)->shell,
         IAnjutaDocumentManager, NULL);
-    g_return_if_fail(docman);
+    g_return_if_fail(self->docman);
 
-    documents = ianjuta_document_manager_get_doc_widgets(docman, NULL);
+    g_object_add_weak_pointer(G_OBJECT(self->docman), (void**)&self->docman);
+
+    documents = ianjuta_document_manager_get_doc_widgets(self->docman, NULL);
     for (l = documents; l; l = l->next)
     {
         IAnjutaDocument* doc = IANJUTA_DOCUMENT(l->data);
@@ -213,8 +207,8 @@ quick_open_plugin_setup_document_handling(QuickOpenPlugin* self)
     }
     g_list_free(documents);
 
-    g_signal_connect(docman, "document-added", G_CALLBACK(on_document_added), self);
-    g_signal_connect(docman, "document-removed", G_CALLBACK(on_document_removed), self);
+    g_signal_connect(self->docman, "document-added", G_CALLBACK(on_document_added), self);
+    g_signal_connect(self->docman, "document-removed", G_CALLBACK(on_document_removed), self);
 }
 
 /* Actions table
@@ -275,8 +269,6 @@ quick_open_plugin_deactivate(AnjutaPlugin *plugin)
     QuickOpenPlugin *self = ANJUTA_PLUGIN_QUICK_OPEN(plugin);
 
     AnjutaUI *ui;
-    IAnjutaProjectManager* project_manager;
-    IAnjutaDocumentManager* docman;
 
     DEBUG_PRINT("%s", "Quick Open Plugin: Deactivating plugin…");
 
@@ -288,16 +280,13 @@ quick_open_plugin_deactivate(AnjutaPlugin *plugin)
     anjuta_plugin_remove_watch(plugin, self->project_watch_id, FALSE);
 
     /* Disconnect signals. */
-    project_manager = anjuta_shell_get_interface(ANJUTA_PLUGIN(self)->shell,
-        IAnjutaProjectManager, NULL);
-    if (project_manager)
-        g_signal_handlers_disconnect_by_func(project_manager, on_project_loaded, self);
-    
-    docman = anjuta_shell_get_interface(ANJUTA_PLUGIN(self)->shell, IAnjutaDocumentManager, NULL);
-    if (docman)
+    if (self->project_manager)
+        g_signal_handlers_disconnect_by_func(self->project_manager, on_project_loaded, self);
+
+    if (self->docman)
     {
-        g_signal_handlers_disconnect_by_func(docman, on_document_added, self);
-        g_signal_handlers_disconnect_by_func(docman, on_document_removed, self);
+        g_signal_handlers_disconnect_by_func(self->docman, on_document_added, self);
+        g_signal_handlers_disconnect_by_func(self->docman, on_document_removed, self);
     }
 
     gtk_widget_destroy(GTK_WIDGET(self->dialog));
