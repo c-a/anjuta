@@ -66,18 +66,21 @@ typedef struct _SnippetEntry
 
 /* IAnjutaProvider methods declaration */
 
-static void             snippets_provider_iface_init     (IAnjutaProviderIface* iface);
-static void             snippets_provider_populate       (IAnjutaProvider *self,
-                                                          IAnjutaIterable *cursor,
-                                                          GError **error);
-static IAnjutaIterable* snippets_provider_get_start_iter (IAnjutaProvider *self,
-                                                          GError **error);
-static void             snippets_provider_activate       (IAnjutaProvider *self,
-                                                          IAnjutaIterable *iter,
-                                                          gpointer data,
-                                                          GError **error);
-static const gchar*     snippets_provider_get_name       (IAnjutaProvider *self,
-                                                          GError **error);
+static void             snippets_provider_iface_init      (IAnjutaProviderIface* iface);
+static void             snippets_provider_populate        (IAnjutaProvider *self,
+                                                           IAnjutaIterable *cursor,
+                                                           GError **error);
+static IAnjutaIterable* snippets_provider_get_start_iter  (IAnjutaProvider *self,
+                                                           GError **error);
+static void             snippets_provider_activate        (IAnjutaProvider *self,
+                                                           IAnjutaIterable *iter,
+                                                           gpointer data,
+                                                           GError **error);
+static const gchar*     snippets_provider_get_name        (IAnjutaProvider *self,
+                                                           GError **error);
+static GtkWidget*       snippets_provider_get_info_widget (IAnjutaProvider *self,
+                                                           gpointer data,
+                                                           GError **error);
 
 G_DEFINE_TYPE_WITH_CODE (SnippetsProvider,
 			 snippets_provider,
@@ -115,11 +118,11 @@ snippets_provider_class_init (SnippetsProviderClass *klass)
 static void 
 snippets_provider_iface_init (IAnjutaProviderIface* iface)
 {
-	iface->populate       = snippets_provider_populate;
-	iface->get_start_iter = snippets_provider_get_start_iter;
-	iface->activate       = snippets_provider_activate;
-	iface->get_name       = snippets_provider_get_name;
-
+	iface->populate        = snippets_provider_populate;
+	iface->get_start_iter  = snippets_provider_get_start_iter;
+	iface->activate        = snippets_provider_activate;
+	iface->get_name        = snippets_provider_get_name;
+	iface->get_info_widget = snippets_provider_get_info_widget;
 }
 
 /* Private methods */
@@ -754,3 +757,10 @@ snippets_provider_get_name (IAnjutaProvider *self,
 	return _("Code Snippets");
 }
 
+static GtkWidget*
+snippets_provider_get_info_widget (IAnjutaProvider *self,
+                                   gpointer data,
+                                   GError **error)
+{
+	return NULL;
+}
