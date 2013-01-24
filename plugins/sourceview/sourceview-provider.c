@@ -32,6 +32,20 @@ G_DEFINE_TYPE_WITH_CODE (SourceviewProvider,
 			 G_IMPLEMENT_INTERFACE (GTK_SOURCE_TYPE_COMPLETION_PROVIDER,
 			                        sourceview_provider_iface_init))
 
+static GtkWidget*
+sourceview_provider_get_info_widget (GtkSourceCompletionProvider* provider,
+                                     GtkSourceCompletionProposal* proposal)
+{
+	SourceviewProvider* prov = SOURCEVIEW_PROVIDER(provider);
+
+	gpointer data;
+
+	g_return_val_if_fail (GTK_SOURCE_IS_COMPLETION_ITEM (proposal), NULL);
+	data = g_object_get_data (G_OBJECT (proposal), "__data");
+
+	return ianjuta_provider_get_info_widget (prov->iprov, data, NULL);
+}
+
 static void
 on_context_cancelled (GtkSourceCompletionContext* context, SourceviewProvider* provider)
 {
@@ -115,6 +129,7 @@ sourceview_provider_iface_init (GtkSourceCompletionProviderIface* provider)
 	provider->get_start_iter = sourceview_provider_get_start_iter;
 	provider->activate_proposal = sourceview_provider_activate_proposal;
 	provider->get_priority = sourceview_provider_get_priority;
+	provider->get_info_widget = sourceview_provider_get_info_widget;
 }
 
 static void
