@@ -44,6 +44,9 @@ public class ValaProvider : Object, IAnjuta.Provider {
 	public unowned string get_name () throws GLib.Error {
 		return "Vala";
 	}
+    public unowned Gtk.Widget get_info_widget (void* data) throws GLib.Error {
+		return null;
+	}
 	public void populate (IAnjuta.Iterable iter) throws GLib.Error {
 		if (!plugin.settings.get_boolean (PREF_AUTOCOMPLETE_ENABLE))
 			return;
