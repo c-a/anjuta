@@ -49,6 +49,9 @@ struct _AnjutaLanguageProposalData
 	gboolean is_func;
 	gboolean has_para;
 	IAnjutaSymbolType type;
+
+	gpointer user_data;
+	GDestroyNotify user_data_destroy_func;
 };
 
 GType anjuta_language_proposal_data_get_type (void) G_GNUC_CONST;

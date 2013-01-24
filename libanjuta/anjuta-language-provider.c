@@ -621,6 +621,10 @@ anjuta_language_proposal_data_free (AnjutaLanguageProposalData *data)
 {
 	g_free (data->name);
 	g_free (data->info);
+
+	if (data->user_data && data->user_data_destroy_func)
+		data->user_data_destroy_func (data->user_data);
+
 	g_free (data);
 }
 
