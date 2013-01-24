@@ -419,13 +419,22 @@ iprovider_get_start_iter (IAnjutaProvider* self,
 	return anjuta_language_provider_get_start_iter (plugin->lang_prov);
 }
 
+static GtkWidget*
+iprovider_get_info_widget (IAnjutaProvider* self,
+                           gpointer data,
+                           GError** e)
+{
+	return NULL;
+}
+
 static void
 iprovider_iface_init (IAnjutaProviderIface* iface)
 {
-	iface->activate       = iprovider_activate;
-	iface->populate       = iprovider_populate;
-	iface->get_name       = iprovider_get_name;
-	iface->get_start_iter = iprovider_get_start_iter;
+	iface->activate        = iprovider_activate;
+	iface->populate        = iprovider_populate;
+	iface->get_name        = iprovider_get_name;
+	iface->get_start_iter  = iprovider_get_start_iter;
+	iface->get_info_widget = iprovider_get_info_widget;
 }
 
 static GList*
