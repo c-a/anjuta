@@ -801,6 +801,14 @@ python_assist_get_start_iter (IAnjutaProvider* self,
 	return anjuta_language_provider_get_start_iter (assist->priv->lang_prov);
 }
 
+static GtkWidget*
+python_assist_get_info_widget (IAnjutaProvider* self,
+                               gpointer data,
+                               GError** e)
+{
+	return NULL;
+}
+
 static void
 iprovider_iface_init (IAnjutaProviderIface* iface)
 {
@@ -808,6 +816,7 @@ iprovider_iface_init (IAnjutaProviderIface* iface)
 	iface->populate            = python_assist_populate;
 	iface->get_name            = python_assist_get_name;
 	iface->get_start_iter      = python_assist_get_start_iter;
+	iface->get_info_widget     = python_assist_get_info_widget;
 }
 
 static void
