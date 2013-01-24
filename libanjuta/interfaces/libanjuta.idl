@@ -2646,6 +2646,7 @@ interface IAnjutaEditorFactory
  */
 interface IAnjutaProvider
 {
+	#include <gtk/gtk.h>
 	#include "ianjuta-iterable.h"
 
 	/**
@@ -2691,7 +2692,20 @@ interface IAnjutaProvider
 	 * Return a (translatable) name for the provider
 	 */
 	const gchar* get_name();
-	
+
+	/**
+	 * ianjuta_provider_get_info_widget:
+	 * @obj: Self
+	 * @data: data assigned to the proposal
+	 *
+	 * Return the widget that should be used for showing extra info
+	 * for the proposal with @data or %NULL if the default widget should be
+	 * used.
+	 *
+	 * Returns: (transfer none): A #GtkWidget or %NULL.
+	 */
+	GtkWidget* get_info_widget(gpointer data);
+
 	/**
 	 * SECTION:ianjuta-language-provider
 	 * @title: IAnjutaLanguageProvider
