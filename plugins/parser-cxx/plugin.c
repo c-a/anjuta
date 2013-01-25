@@ -94,6 +94,7 @@ uninstall_support (ParserCxxPlugin *parser_plugin)
 
     if (parser_plugin->assist)
     {
+		parser_cxx_assist_uninstall (parser_plugin->assist);
         g_object_unref (parser_plugin->assist);
         parser_plugin->assist = NULL;
     }

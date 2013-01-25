@@ -950,7 +950,7 @@ parser_cxx_assist_install (ParserCxxAssist *assist,
  *
  * Returns: Unregisters provider
  */
-static void
+void
 parser_cxx_assist_uninstall (ParserCxxAssist *assist)
 {
 	g_return_if_fail (assist->priv->iassist != NULL);
@@ -972,8 +972,9 @@ parser_cxx_assist_finalize (GObject *object)
 {
 	ParserCxxAssist *assist = PARSER_CXX_ASSIST (object);
 	ParserCxxAssistPriv* priv = assist->priv;
-	
-	parser_cxx_assist_uninstall (assist);
+
+	if (assist->priv->iassist)
+		parser_cxx_assist_uninstall (assist);
 	parser_cxx_assist_clear_completion_cache (assist);
 	parser_cxx_assist_clear_calltip_context (assist);
 

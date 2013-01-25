@@ -67,6 +67,8 @@ ParserCxxAssist*
 parser_cxx_assist_new                             (IAnjutaEditor *ieditor,
                                                    IAnjutaSymbolManager *isymbol_manager,
                                                    GSettings* settings);
+void
+parser_cxx_assist_uninstall                       (ParserCxxAssist *assist);
 
 G_END_DECLS
 
