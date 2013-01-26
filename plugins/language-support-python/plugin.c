@@ -302,6 +302,7 @@ uninstall_support (PythonPlugin *lang_plugin)
 
 	if (lang_plugin->assist)
 	{
+		python_assist_uninstall (lang_plugin->assist);
 		g_object_unref (lang_plugin->assist);
 		lang_plugin->assist = NULL;
 	}

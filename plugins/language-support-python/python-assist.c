@@ -708,7 +708,7 @@ python_assist_install (PythonAssist *assist,
 	}
 }
 
-static void
+void
 python_assist_uninstall (PythonAssist *assist)
 {
 	g_return_if_fail (assist->priv->iassist != NULL);

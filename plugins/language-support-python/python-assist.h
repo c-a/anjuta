@@ -70,6 +70,9 @@ python_assist_new                             (IAnjutaEditor *ieditor,
                                                AnjutaPlugin *plugin,
                                                const gchar *project_root);
 
+void
+python_assist_uninstall                       (PythonAssist *assist);
+
 G_END_DECLS
 
 #endif /* _PYTHON_ASSIST_H_ */
