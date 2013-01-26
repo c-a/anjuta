@@ -28,7 +28,10 @@
 #include <libanjuta/anjuta-tabber.h>
 #include <libanjuta/interfaces/ianjuta-document-manager.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
+#include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-help.h>
+#include <libanjuta/interfaces/ianjuta-language.h>
+#include <libanjuta/interfaces/ianjuta-preferences.h>
 
 #include "plugin.h"
 
@@ -42,7 +45,10 @@
 
 #define ONLINE_API_DOCS "http://library.gnome.org/devel"
 
-#define UI_FILE PACKAGE_DATA_DIR"/ui/anjuta-devhelp.ui"
+#define UI_FILE       PACKAGE_DATA_DIR"/ui/anjuta-devhelp.ui"
+#define PREFS_UI_FILE PACKAGE_DATA_DIR"/ui/anjuta-devhelp-settings.ui"
+
+#define ICON_FILE "anjuta-devhelp-plugin-48.png"
 
 #else /* DISABLE_EMBEDDED_DEVHELP */
 
@@ -62,6 +68,8 @@ static gpointer parent_class;
 #define ANJUTA_STOCK_DEVHELP "anjuta-devhelp"
 #define ANJUTA_STOCK_DEVHELP_SEARCH "anjuta-devhelp-search"
 #define ANJUTA_STOCK_DEVHELP_VIEW "anjuta-devhelp-view"
+
+#define PREF_SCHEMA "org.gnome.anjuta.plugins.devhelp"
 
 static void
 register_stock_icons (AnjutaPlugin *plugin)
@@ -291,6 +299,7 @@ value_added_current_editor (AnjutaPlugin *plugin, const gchar *name,
 	editor = g_value_get_object (value);
 	if (!IANJUTA_IS_EDITOR (editor))
 		return;
+
 	devhelp->editor = IANJUTA_EDITOR(editor);
 	action = gtk_action_group_get_action (devhelp->action_group,
 										  "ActionHelpContext");
@@ -311,6 +320,84 @@ value_removed_current_editor (AnjutaPlugin *plugin,
 }
 
 #ifndef DISABLE_EMBEDDED_DEVHELP
+
+#define DEVHELP_DATA__PROVIDER "devhelp_data__provider"
+
+static void
+on_language_changed (IAnjutaDocument* doc, const gchar* language,
+                     gpointer user_data)
+{
+	AnjutaDevhelp* devhelp = ANJUTA_PLUGIN_DEVHELP (user_data);
+
+	DevhelpProvider* provider;
+
+	provider = (DevhelpProvider*)g_object_get_data (G_OBJECT (doc),
+	                                                DEVHELP_DATA__PROVIDER);
+	if (provider)
+	{
+		if (!devhelp_provider_supports_language (language))
+		{
+			ianjuta_editor_assist_remove (IANJUTA_EDITOR_ASSIST (doc),
+			                              IANJUTA_PROVIDER (provider), NULL);
+		}
+		else
+			devhelp_provider_set_language (provider, language);
+	}
+	else
+	{
+		DevhelpProvider* provider;
+
+		if (!devhelp_provider_supports_language (language))
+			return;
+
+		provider = devhelp_provider_new (devhelp->book_manager, devhelp->settings,
+		                                 IANJUTA_EDITOR_ASSIST (doc));
+		devhelp_provider_set_language (provider, language);
+
+		ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (doc),
+		                           IANJUTA_PROVIDER (provider), NULL);
+		g_object_set_data (G_OBJECT (doc), DEVHELP_DATA__PROVIDER, provider);
+
+		g_object_unref (provider);
+	}
+}
+
+static void
+on_document_added (IAnjutaDocumentManager* docman, IAnjutaDocument* doc,
+                   gpointer user_data)
+{
+	AnjutaDevhelp* devhelp = ANJUTA_PLUGIN_DEVHELP (user_data);
+
+	IAnjutaLanguage* lang_manager;
+	const gchar* lang;
+	DevhelpProvider* provider;
+
+	if (!(IANJUTA_IS_EDITOR_ASSIST (doc) && IANJUTA_IS_EDITOR_LANGUAGE (doc)))
+		return;
+
+	lang_manager = anjuta_shell_get_interface (ANJUTA_PLUGIN (devhelp)->shell,
+	                                           IAnjutaLanguage, NULL);
+	if (!lang_manager)
+		return;
+
+	g_signal_connect_object (doc, "language-changed",
+	                         G_CALLBACK (on_language_changed), devhelp, 0);
+
+	lang = ianjuta_language_get_name_from_editor (lang_manager,
+	                                              IANJUTA_EDITOR_LANGUAGE (doc), NULL);
+	if (!devhelp_provider_supports_language (lang))
+		return;
+
+	provider = devhelp_provider_new (devhelp->book_manager, devhelp->settings,
+	                                 IANJUTA_EDITOR_ASSIST (doc));
+	devhelp_provider_set_language (provider, lang);
+
+	ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (doc),
+	                           IANJUTA_PROVIDER (provider), NULL);
+	g_object_set_data (G_OBJECT (devhelp), DEVHELP_DATA__PROVIDER, provider);
+
+	g_object_unref (provider);
+}
 
 #ifdef HAVE_WEBKIT2
 static void on_load_changed (WebKitWebView* web_view,
@@ -341,6 +428,7 @@ devhelp_activate (AnjutaPlugin *plugin)
 	static gboolean init = FALSE;
 	GtkWidget *label;
 	GtkWidget *books_sw;
+	IAnjutaDocumentManager* docman;
 	
 	if (!init)
 	{
@@ -510,6 +598,17 @@ devhelp_activate (AnjutaPlugin *plugin)
 	                                devhelp->tab_hbox,
 	                                ANJUTA_SHELL_PLACEMENT_LEFT, NULL);
 
+	/* Create settings used by devhelp provider */
+	devhelp->settings = g_settings_new (PREF_SCHEMA);
+
+	/* Connect to IAnjutaDocumentManager::document-added to add a
+	 * DevhelpProvider to the newly created documents. */
+	docman = anjuta_shell_get_interface (plugin->shell, IAnjutaDocumentManager,
+	                                     NULL);
+	g_return_val_if_fail (docman != NULL, FALSE);
+	g_signal_connect_object (docman, "document-added",
+	                         G_CALLBACK (on_document_added), devhelp, 0);
+
 #endif /* DISABLE_EMBEDDED_DEVHELP */
 
 	/* Add watches */
@@ -539,6 +638,8 @@ devhelp_deactivate (AnjutaPlugin *plugin)
 	/* Remove widgets */
 	anjuta_shell_remove_widget(plugin->shell, devhelp->present_widget, NULL);
 	anjuta_shell_remove_widget(plugin->shell, devhelp->control_notebook, NULL);	
+
+	g_clear_object (&devhelp->settings);
 
 #endif /* DISABLE_EMBEDDED_DEVHELP */
 	
@@ -591,18 +692,16 @@ static void
 devhelp_instance_init (GObject *obj)
 {
 	AnjutaDevhelp *plugin = ANJUTA_PLUGIN_DEVHELP (obj);
-	
-#ifndef DISABLE_EMBEDDED_DEVHELP
 
+#ifndef DISABLE_EMBEDDED_DEVHELP
 	/* Initialize Devhelp support */
 	dh_init ();
 
 	/* Create devhelp */
 	plugin->book_manager = dh_book_manager_new ();
 	dh_book_manager_populate (plugin->book_manager);
-
 #endif /* DISABLE_EMBEDDED_DEVHELP */
-	
+
 	plugin->uiid = 0;
 }
 
@@ -634,6 +733,63 @@ ihelp_search (IAnjutaHelp *help, const gchar *query, GError **err)
 	
 	dh_search_set_search_string (DH_SEARCH (plugin->search), query, NULL);
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (plugin->control_notebook), 1);
+}
+
+#define PREF_WIDGET_SPACE "preferences:completion-space-after-func"
+#define PREF_WIDGET_BRACE "preferences:completion-brace-after-func"
+#define PREF_WIDGET_CLOSEBRACE "preferences:completion-closebrace-after-func"
+#define PREF_WIDGET_AUTO "preferences:completion-enable"
+
+static void
+ipreferences_merge (IAnjutaPreferences* iprefs,
+                    AnjutaPreferences* prefs,
+                    GError** error)
+{
+	AnjutaDevhelp* devhelp = ANJUTA_PLUGIN_DEVHELP (iprefs);
+
+	GError* err = NULL;
+	GtkWidget *autow, *closebrace, *brace, *space;
+
+	devhelp->builder = gtk_builder_new ();
+	/* Add preferences */
+	if (!gtk_builder_add_from_file (devhelp->builder, PREFS_UI_FILE, &err))
+	{
+		g_warning ("Couldn't load builder file: %s", err->message);
+		g_error_free (err);
+		g_clear_object (&devhelp->builder);
+	}
+
+	anjuta_util_builder_get_objects (devhelp->builder, PREF_WIDGET_AUTO, &autow,
+	                                 PREF_WIDGET_CLOSEBRACE, &closebrace,
+	                                 PREF_WIDGET_BRACE, &brace,
+	                                 PREF_WIDGET_SPACE, &space,
+	                                 NULL);
+	g_object_bind_property (autow, "active", closebrace, "sensitive", G_BINDING_DEFAULT);
+	g_object_bind_property (autow, "active", brace, "sensitive", G_BINDING_DEFAULT);
+	g_object_bind_property (autow, "active", space, "sensitive", G_BINDING_DEFAULT);
+
+	anjuta_preferences_add_from_builder (prefs,
+	                                     devhelp->builder, devhelp->settings,
+	                                     "preferences", _("Devhelp"),
+	                                     ICON_FILE);
+}
+
+static void
+ipreferences_unmerge (IAnjutaPreferences* iprefs,
+                      AnjutaPreferences* prefs,
+                      GError** error)
+{
+	AnjutaDevhelp* devhelp = ANJUTA_PLUGIN_DEVHELP (iprefs);
+
+	anjuta_preferences_remove_page(prefs, _("Devhelp"));
+	g_clear_object (&devhelp->builder);
+}
+
+static void
+ipreferences_iface_init(IAnjutaPreferencesIface *iface)
+{
+	iface->merge = ipreferences_merge;
+	iface->unmerge = ipreferences_unmerge;
 }
 
 #else /* DISABLE_EMBEDDED_DEVHELP */
@@ -698,6 +854,9 @@ ihelp_iface_init(IAnjutaHelpIface *iface)
 
 ANJUTA_PLUGIN_BEGIN (AnjutaDevhelp, devhelp);
 ANJUTA_PLUGIN_ADD_INTERFACE (ihelp, IANJUTA_TYPE_HELP);
+#ifndef DISABLE_EMBEDDED_DEVHELP
+ANJUTA_PLUGIN_ADD_INTERFACE (ipreferences, IANJUTA_TYPE_PREFERENCES);
+#endif /* DISABLE_EMBEDDED_DEVHELP */
 ANJUTA_PLUGIN_END;
 
 ANJUTA_SIMPLE_PLUGIN (AnjutaDevhelp, devhelp);

@@ -32,6 +32,8 @@
 #include <devhelp/devhelp.h>
 #endif /* DISABLE_EMBEDDED_DEVHELP */
 
+#include "devhelp-provider.h"
+
 extern GType devhelp_get_type (GTypeModule *module);
 #define ANJUTA_TYPE_PLUGIN_DEVHELP         (devhelp_get_type (NULL))
 #define ANJUTA_PLUGIN_DEVHELP(o)           (G_TYPE_CHECK_INSTANCE_CAST ((o), ANJUTA_TYPE_PLUGIN_DEVHELP, AnjutaDevhelp))
@@ -45,7 +47,7 @@ typedef struct _AnjutaDevhelpClass AnjutaDevhelpClass;
 
 struct _AnjutaDevhelp{
 	AnjutaPlugin parent;
-	
+
 #ifndef DISABLE_EMBEDDED_DEVHELP
 	DhBookManager  *book_manager;
 	GtkWidget      *view;
@@ -63,11 +65,14 @@ struct _AnjutaDevhelp{
 	GtkWidget      *online;
 
 	GtkWidget      *tabber;
+
+	GtkBuilder     *builder;
+	GSettings      *settings;
 #endif /* DISABLE_EMBEDDED_DEVHELP */
 
 	IAnjutaEditor	*editor;
 	guint editor_watch_id;
-	
+
 	GtkActionGroup* action_group;
 	gint uiid;
 };

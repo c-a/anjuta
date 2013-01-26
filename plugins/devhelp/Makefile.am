@@ -2,7 +2,7 @@ SUBDIRS = images
 
 # Plugin UI file
 devhelp_uidir = $(anjuta_ui_dir)
-devhelp_ui_DATA = anjuta-devhelp.ui anjuta-devhelp-simple.ui
+devhelp_ui_DATA = anjuta-devhelp.ui anjuta-devhelp-simple.ui anjuta-devhelp-settings.ui
 
 # Plugin description file
 plugin_in_files = anjuta-devhelp.plugin.in
@@ -10,6 +10,11 @@ plugin_in_files = anjuta-devhelp.plugin.in
 
 devhelp_plugindir = $(anjuta_plugin_dir)
 devhelp_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
+
+gsettings_in_file = org.gnome.anjuta.plugins.devhelp.gschema.xml.in
+gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
+@INTLTOOL_XML_NOMERGE_RULE@
+@GSETTINGS_RULES@
 
 # Include paths
 AM_CPPFLAGS = \
@@ -33,6 +38,8 @@ libanjuta_devhelp_la_LDFLAGS = $(ANJUTA_PLUGIN_LDFLAGS)
 
 # Plugin sources
 libanjuta_devhelp_la_SOURCES = \
+	devhelp-provider.c \
+	devhelp-provider.h \
 	plugin.c \
 	plugin.h
 
