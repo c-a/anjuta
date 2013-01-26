@@ -35,6 +35,7 @@ struct _DevhelpProviderPrivate
     GList* proposals;
 
     /* Properties */
+    AnjutaDevhelp* devhelp;
     DhBookManager* book_manager;
     GSettings* settings;
     IAnjutaEditorAssist* assist;
@@ -44,6 +45,7 @@ struct _DevhelpProviderPrivate
 enum
 {
     PROP_0,
+    PROP_DEVHELP,
     PROP_BOOK_MANAGER,
     PROP_SETTINGS,
     PROP_ASSIST,
@@ -164,6 +166,7 @@ devhelp_provider_update_proposals (DevhelpProvider* self, const char* pre_word)
     int i;
     GList* b;
     gboolean case_sensitive;
+    GList* completion_books;
     GList* proposals = NULL, *tenth;
 
     g_return_if_fail (self->priv->proposals == NULL);
@@ -180,6 +183,8 @@ devhelp_provider_update_proposals (DevhelpProvider* self, const char* pre_word)
         }
     }
 
+    completion_books = anjuta_devhelp_get_autocomplete_books (self->priv->devhelp);
+
     for (b = dh_book_manager_get_books (self->priv->book_manager);
          b;
          b = b->next)
@@ -189,6 +194,12 @@ devhelp_provider_update_proposals (DevhelpProvider* self, const char* pre_word)
         
         book = b->data;
 
+        /* Filter by books */
+        if (!g_list_find_custom (completion_books, dh_book_get_name (book),
+                                (GCompareFunc)g_strcmp0))
+            continue;
+
+        /* Filter by language */
         if (self->priv->language &&
             !g_strcmp0 (self->priv->language, dh_book_get_language (book)))
             continue;
@@ -348,6 +359,10 @@ devhelp_provider_set_property (GObject* object,
 
     switch (property_id)
     {
+        case PROP_DEVHELP:
+            self->priv->devhelp = g_value_dup_object (value);
+            break;
+
         case PROP_BOOK_MANAGER:
             self->priv->book_manager = g_value_dup_object (value);
             break;
@@ -384,7 +399,8 @@ devhelp_provider_finalize (GObject* object)
     g_clear_object (&self->priv->lang_prov);
     g_clear_object (&self->priv->assistant_view);
     g_clear_object (&self->priv->icon);
-    
+
+    g_clear_object (&self->priv->devhelp);
     g_clear_object (&self->priv->book_manager);
     g_clear_object (&self->priv->settings);
     g_clear_object (&self->priv->assist);
@@ -436,6 +452,10 @@ devhelp_provider_class_init (DevhelpProviderClass* klass)
     object_class->finalize = devhelp_provider_finalize;
     object_class->set_property = devhelp_provider_set_property;
 
+    properties[PROP_DEVHELP] =
+        g_param_spec_object ("devhelp", "AnjutaDevhelp", "Devhelp plugin",
+                             ANJUTA_TYPE_PLUGIN_DEVHELP,
+                             G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
     properties[PROP_BOOK_MANAGER] =
         g_param_spec_object ("book-manager", "DhBookManager", "Book Manager",
                              DH_TYPE_BOOK_MANAGER,
@@ -476,11 +496,13 @@ devhelp_provider_language_provider_interface_init (IAnjutaLanguageProviderIface*
 }
 
 DevhelpProvider*
-devhelp_provider_new (DhBookManager*       book_manager,
+devhelp_provider_new (AnjutaDevhelp*       devhelp,
+                      DhBookManager*       book_manager,
                       GSettings*           settings,
                       IAnjutaEditorAssist* assist)
 {
     return g_object_new (DEVHELP_TYPE_PROVIDER,
+                         "devhelp", devhelp,
                          "book-manager", book_manager,
                          "settings", settings,
                          "assist", assist,

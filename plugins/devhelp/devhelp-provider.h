@@ -22,6 +22,8 @@
 
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 
+#include "plugin.h"
+
 G_BEGIN_DECLS
 
 #define DEVHELP_TYPE_PROVIDER             (devhelp_provider_get_type ())
@@ -53,7 +55,8 @@ gboolean
 devhelp_provider_supports_language     (const gchar* language);
 
 DevhelpProvider*
-devhelp_provider_new                   (DhBookManager*       book_manager,
+devhelp_provider_new                   (AnjutaDevhelp*       devhelp,
+                                        DhBookManager*       book_manager,
                                         GSettings*           settings,
                                         IAnjutaEditorAssist* assist);
 

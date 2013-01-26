@@ -27,12 +27,11 @@
 
 #include <libanjuta/anjuta-plugin.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
+#include <libanjuta/interfaces/ianjuta-project-manager.h>
 
 #ifndef DISABLE_EMBEDDED_DEVHELP
 #include <devhelp/devhelp.h>
 #endif /* DISABLE_EMBEDDED_DEVHELP */
-
-#include "devhelp-provider.h"
 
 extern GType devhelp_get_type (GTypeModule *module);
 #define ANJUTA_TYPE_PLUGIN_DEVHELP         (devhelp_get_type (NULL))
@@ -68,6 +67,11 @@ struct _AnjutaDevhelp{
 
 	GtkBuilder     *builder;
 	GSettings      *settings;
+
+	IAnjutaProjectManager *project_manager;
+	GList                 *project_books;
+	gboolean               have_session_books;
+	GList                 *session_books;
 #endif /* DISABLE_EMBEDDED_DEVHELP */
 
 	IAnjutaEditor	*editor;
@@ -82,5 +86,10 @@ struct _AnjutaDevhelpClass{
 };
 
 void anjuta_devhelp_check_history(AnjutaDevhelp* devhelp);
+
+#ifndef DISABLE_EMBEDDED_DEVHELP
+GList*
+anjuta_devhelp_get_autocomplete_books (AnjutaDevhelp* devhelp);
+#endif /* DISABLE_EMBEDDED_DEVHELP */
 
 #endif

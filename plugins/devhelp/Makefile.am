@@ -38,6 +38,8 @@ libanjuta_devhelp_la_LDFLAGS = $(ANJUTA_PLUGIN_LDFLAGS)
 
 # Plugin sources
 libanjuta_devhelp_la_SOURCES = \
+	devhelp-books-chooser.c \
+	devhelp-books-chooser.h \
 	devhelp-provider.c \
 	devhelp-provider.h \
 	plugin.c \

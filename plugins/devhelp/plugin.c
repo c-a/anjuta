@@ -32,6 +32,7 @@
 #include <libanjuta/interfaces/ianjuta-help.h>
 #include <libanjuta/interfaces/ianjuta-language.h>
 #include <libanjuta/interfaces/ianjuta-preferences.h>
+#include <libanjuta/interfaces/ianjuta-project-manager.h>
 
 #include "plugin.h"
 
@@ -42,6 +43,9 @@
 #else
 #include <webkit/webkit.h>
 #endif
+
+#include "devhelp-books-chooser.h"
+#include "devhelp-provider.h"
 
 #define ONLINE_API_DOCS "http://library.gnome.org/devel"
 
@@ -324,6 +328,118 @@ value_removed_current_editor (AnjutaPlugin *plugin,
 #define DEVHELP_DATA__PROVIDER "devhelp_data__provider"
 
 static void
+on_session_load (AnjutaShell* shell, AnjutaSessionPhase phase,
+                 AnjutaSession* session, gpointer user_data)
+{
+	AnjutaDevhelp* devhelp = ANJUTA_PLUGIN_DEVHELP (user_data);
+
+	char* books_string;
+
+	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
+		return;
+
+	books_string = anjuta_session_get_string (session, "Devhelp", "Books");
+	if (books_string)
+	{
+		g_free (books_string);
+
+		devhelp->have_session_books = TRUE;
+		devhelp->session_books = anjuta_session_get_string_list (session, "Devhelp", "Books");
+	}
+}
+
+static void
+on_session_save (AnjutaShell* shell, AnjutaSessionPhase phase,
+                 AnjutaSession* session, gpointer user_data)
+{
+	AnjutaDevhelp* devhelp = ANJUTA_PLUGIN_DEVHELP (user_data);
+
+	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
+		return;
+
+	if (devhelp->have_session_books)
+	{
+		if (devhelp->session_books)
+			anjuta_session_set_string_list (session, "Devhelp", "Books",
+			                                devhelp->session_books);
+		else
+			anjuta_session_set_string (session, "Devhelp", "Books", "");
+	}
+}
+
+static GList*
+devhelp_utils_packages_to_books (DhBookManager* book_manager, GList* packages)
+{
+	GList* p;
+	GList* books = NULL;
+
+	for (p = packages; p; p = p->next)
+	{
+		const char* package_name;
+		GList* b;
+
+		package_name = p->data;
+
+		for (b = dh_book_manager_get_books (book_manager);
+		     b;
+		     b = b->next)
+		{
+			DhBook* book;
+
+			book = b->data;
+
+			/* FIXME: pkg-config names and devhelp book names are not always
+			 * identical. We need to add a pkg-config field to the devhelp book
+			 * to be able to do a proper mapping. */
+			if (!g_strcmp0 (package_name, dh_book_get_name (book)))
+			{
+				books = g_list_prepend (books, g_strdup (dh_book_get_name (book)));
+				break;
+			}
+		}
+	}
+
+	return books;
+}
+
+static void
+devhelp_project_loaded (AnjutaDevhelp* devhelp)
+{
+	GList* packages;
+
+	g_list_free_full (devhelp->project_books, g_free);
+	
+	packages = ianjuta_project_manager_get_packages (devhelp->project_manager, NULL);
+	devhelp->project_books = devhelp_utils_packages_to_books (devhelp->book_manager,
+	                                                          packages);
+	g_list_free (packages);
+}
+
+static void
+devhelp_setup_completion_books (AnjutaDevhelp* devhelp)
+{
+	IAnjutaProject* project;
+
+	/* Connect to session signal */
+	g_signal_connect (ANJUTA_PLUGIN (devhelp)->shell, "save-session",
+	                  G_CALLBACK (on_session_save), devhelp);
+	g_signal_connect (ANJUTA_PLUGIN (devhelp)->shell, "load-session",
+	                  G_CALLBACK (on_session_load), devhelp);
+
+	devhelp->project_manager = anjuta_shell_get_interface (ANJUTA_PLUGIN (devhelp)->shell,
+	                                                       IAnjutaProjectManager, NULL);
+	g_return_if_fail (devhelp->project_manager);
+
+	g_signal_connect_object (devhelp->project_manager, "project-loaded",
+	                         G_CALLBACK (devhelp_project_loaded), devhelp,
+	                         G_CONNECT_SWAPPED);
+
+	project = ianjuta_project_manager_get_current_project (devhelp->project_manager, NULL);
+	if (project && ianjuta_project_is_loaded (project, NULL))
+		devhelp_project_loaded (devhelp);
+}
+
+static void
 on_language_changed (IAnjutaDocument* doc, const gchar* language,
                      gpointer user_data)
 {
@@ -350,12 +466,13 @@ on_language_changed (IAnjutaDocument* doc, const gchar* language,
 		if (!devhelp_provider_supports_language (language))
 			return;
 
-		provider = devhelp_provider_new (devhelp->book_manager, devhelp->settings,
+		provider = devhelp_provider_new (devhelp, devhelp->book_manager, devhelp->settings,
 		                                 IANJUTA_EDITOR_ASSIST (doc));
 		devhelp_provider_set_language (provider, language);
 
 		ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (doc),
-		                           IANJUTA_PROVIDER (provider), NULL);
+		                           IANJUTA_PROVIDER (provider),
+		                           IANJUTA_PROVIDER_PRIORITY_SECONDARY, NULL);
 		g_object_set_data (G_OBJECT (doc), DEVHELP_DATA__PROVIDER, provider);
 
 		g_object_unref (provider);
@@ -388,12 +505,13 @@ on_document_added (IAnjutaDocumentManager* docman, IAnjutaDocument* doc,
 	if (!devhelp_provider_supports_language (lang))
 		return;
 
-	provider = devhelp_provider_new (devhelp->book_manager, devhelp->settings,
+	provider = devhelp_provider_new (devhelp, devhelp->book_manager, devhelp->settings,
 	                                 IANJUTA_EDITOR_ASSIST (doc));
 	devhelp_provider_set_language (provider, lang);
 
 	ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (doc),
-	                           IANJUTA_PROVIDER (provider), NULL);
+	                           IANJUTA_PROVIDER (provider),
+	                           IANJUTA_PROVIDER_PRIORITY_SECONDARY, NULL);
 	g_object_set_data (G_OBJECT (devhelp), DEVHELP_DATA__PROVIDER, provider);
 
 	g_object_unref (provider);
@@ -609,6 +727,8 @@ devhelp_activate (AnjutaPlugin *plugin)
 	g_signal_connect_object (docman, "document-added",
 	                         G_CALLBACK (on_document_added), devhelp, 0);
 
+	devhelp_setup_completion_books (devhelp);
+
 #endif /* DISABLE_EMBEDDED_DEVHELP */
 
 	/* Add watches */
@@ -640,6 +760,9 @@ devhelp_deactivate (AnjutaPlugin *plugin)
 	anjuta_shell_remove_widget(plugin->shell, devhelp->control_notebook, NULL);	
 
 	g_clear_object (&devhelp->settings);
+
+	g_signal_handlers_disconnect_by_func (plugin->shell, G_CALLBACK (on_session_save), devhelp);
+	g_signal_handlers_disconnect_by_func (plugin->shell, G_CALLBACK (on_session_load), devhelp);
 
 #endif /* DISABLE_EMBEDDED_DEVHELP */
 	
@@ -735,10 +858,38 @@ ihelp_search (IAnjutaHelp *help, const gchar *query, GError **err)
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (plugin->control_notebook), 1);
 }
 
+GList*
+anjuta_devhelp_get_autocomplete_books (AnjutaDevhelp* devhelp)
+{
+	g_return_val_if_fail (ANJUTA_IS_PLUGIN_DEVHELP (devhelp), NULL);
+
+	if (devhelp->have_session_books)
+		return devhelp->session_books;
+
+	return devhelp->project_books;
+}
+
+static void
+on_active_books_changed (DevhelpBooksChooser* books_chooser, gpointer user_data)
+{
+	AnjutaDevhelp* devhelp = ANJUTA_PLUGIN_DEVHELP (user_data);
+
+	const GList* active_books;
+
+	g_list_free_full (devhelp->session_books, g_free);
+
+	active_books = devhelp_books_chooser_get_active_books (books_chooser);
+	devhelp->session_books = g_list_copy_deep ((GList*)active_books,
+	                                           (GCopyFunc)g_strdup, NULL);
+	devhelp->have_session_books = TRUE;
+}
+
 #define PREF_WIDGET_SPACE "preferences:completion-space-after-func"
 #define PREF_WIDGET_BRACE "preferences:completion-brace-after-func"
 #define PREF_WIDGET_CLOSEBRACE "preferences:completion-closebrace-after-func"
 #define PREF_WIDGET_AUTO "preferences:completion-enable"
+
+#define BOOKS_ALIGNMENT "books_alignment"
 
 static void
 ipreferences_merge (IAnjutaPreferences* iprefs,
@@ -748,7 +899,8 @@ ipreferences_merge (IAnjutaPreferences* iprefs,
 	AnjutaDevhelp* devhelp = ANJUTA_PLUGIN_DEVHELP (iprefs);
 
 	GError* err = NULL;
-	GtkWidget *autow, *closebrace, *brace, *space;
+	GtkWidget *autow, *closebrace, *brace, *space, *books_alignment;
+	DevhelpBooksChooser* books_chooser;
 
 	devhelp->builder = gtk_builder_new ();
 	/* Add preferences */
@@ -763,10 +915,22 @@ ipreferences_merge (IAnjutaPreferences* iprefs,
 	                                 PREF_WIDGET_CLOSEBRACE, &closebrace,
 	                                 PREF_WIDGET_BRACE, &brace,
 	                                 PREF_WIDGET_SPACE, &space,
+	                                 BOOKS_ALIGNMENT, &books_alignment,
 	                                 NULL);
 	g_object_bind_property (autow, "active", closebrace, "sensitive", G_BINDING_DEFAULT);
 	g_object_bind_property (autow, "active", brace, "sensitive", G_BINDING_DEFAULT);
 	g_object_bind_property (autow, "active", space, "sensitive", G_BINDING_DEFAULT);
+
+	books_chooser = devhelp_books_chooser_new (devhelp->book_manager);
+	gtk_container_add (GTK_CONTAINER (books_alignment), GTK_WIDGET (books_chooser));
+
+	if (devhelp->have_session_books)
+		devhelp_books_chooser_set_active_books (books_chooser, devhelp->session_books);
+	else
+		devhelp_books_chooser_set_active_books (books_chooser, devhelp->project_books);
+
+	g_signal_connect (books_chooser, "active-books-changed",
+	                  G_CALLBACK (on_active_books_changed), devhelp);
 
 	anjuta_preferences_add_from_builder (prefs,
 	                                     devhelp->builder, devhelp->settings,
