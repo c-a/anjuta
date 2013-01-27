@@ -920,7 +920,8 @@ parser_cxx_assist_install (ParserCxxAssist *assist,
 	{
 		assist->priv->iassist = IANJUTA_EDITOR_ASSIST (ieditor);
 		ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (ieditor),
-		                           IANJUTA_PROVIDER(assist), NULL);
+		                           IANJUTA_PROVIDER(assist),
+		                           IANJUTA_PROVIDER_PRIORITY_PRIMARY, NULL);
 		g_signal_connect (ieditor, "cancelled",
 		                  G_CALLBACK (parser_cxx_assist_cancelled), assist);
 	}
