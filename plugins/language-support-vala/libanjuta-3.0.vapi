@@ -1317,7 +1317,7 @@ namespace IAnjuta {
 	}
 	[CCode (cheader_filename = "libanjuta/interfaces/libanjuta-interfaces.h", type_id = "ianjuta_editor_assist_get_type ()")]
 	public interface EditorAssist : IAnjuta.Editor, GLib.Object {
-		public abstract void add (IAnjuta.Provider provider) throws GLib.Error;
+		public abstract void add (IAnjuta.Provider provider, IAnjuta.ProviderPriority priority) throws GLib.Error;
 		public static GLib.Quark error_quark ();
 		public abstract void invoke (IAnjuta.Provider provider) throws GLib.Error;
 		public abstract void proposals (IAnjuta.Provider provider, GLib.List<IAnjuta.EditorAssistProposal> proposals, string pre_word, bool finished) throws GLib.Error;
@@ -1897,6 +1897,15 @@ namespace IAnjuta {
 		PROBE_MAKE_FILES,
 		[CCode (cname = "IANJUTA_PROJECT_PROBE_PROJECT_FILES")]
 		PROBE_PROJECT_FILES
+	}
+	[CCode (cheader_filename = "libanjuta/interfaces/libanjuta-interfaces.h", cprefix = "IANJUTA_PROVIDER_PRIORITY_", type_id = "ianjuta_provider_priority_get_type ()")]
+	public enum ProviderPriority {
+		[CCode (cname = "IANJUTA_PROVIDER_PRIORITY_PRIMARY")]
+		PRIORITY_PRIMARY,
+		[CCode (cname = "IANJUTA_PROVIDER_PRIORITY_SECONDARY")]
+		PRIORITY_SECONDARY,
+		[CCode (cname = "IANJUTA_PROVIDER_PRIORITY_LOW")]
+		PRIORITY_LOW
 	}
 	[CCode (cheader_filename = "libanjuta/interfaces/libanjuta-interfaces.h", cprefix = "IANJUTA_SYMBOL_", type_id = "ianjuta_symbol_field_get_type ()")]
 	public enum SymbolField {
