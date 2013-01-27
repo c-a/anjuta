@@ -555,7 +555,8 @@ snippets_provider_load (SnippetsProvider *snippets_provider,
 
 	/* Add the snippets_provider to the editor assist */
 	ianjuta_editor_assist_add (editor_assist, 
-	                           IANJUTA_PROVIDER (snippets_provider), 
+	                           IANJUTA_PROVIDER (snippets_provider),
+	                           IANJUTA_PROVIDER_PRIORITY_LOW,
 	                           NULL);
 
 	priv->editor_assist = editor_assist;
