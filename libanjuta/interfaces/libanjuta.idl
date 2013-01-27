@@ -2138,11 +2138,12 @@ interface IAnjutaEditor
       * ianjuta_editor_assist_add
       * @obj: self
       * @provider: a IAnjutaProvider
+      * @priority: a IAnjutaProviderPriority
       * @err: Error handling
       *
       * Add a provider to the list of completion providers
       */
-      void add(IAnjutaProvider* provider);
+      void add(IAnjutaProvider* provider, IAnjutaProviderPriority priority);
 
      /*
       * ianjuta_editor_assist_remove
@@ -2648,6 +2649,24 @@ interface IAnjutaProvider
 {
 	#include <gtk/gtk.h>
 	#include "ianjuta-iterable.h"
+
+	/**
+	 * IAnjutaProviderPriority:
+	 * @IANJUTA_PROVIDER_PRIORITY_PRIMARY: The priority used for primary
+	 * language specific providers whose completions are expected to be the
+	 * most relevent.
+	 * @IANJUTA_PROVIDER_PRIORITY_SECONDARY: The priority used for for more
+	 * generic secondary providers.
+	 * @IANJUTA_PROVIDER_PRIORITY_LOW: The priority used for completely generic
+	 * providers whose completions are expected to be less relevant than the
+	 * completions from other providers.
+	 */
+	enum Priority
+	{
+		PRIORITY_PRIMARY,
+		PRIORITY_SECONDARY,
+		PRIORITY_LOW
+	}
 
 	/**
 	 * ianjuta_provider_populate:
