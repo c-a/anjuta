@@ -2253,13 +2253,36 @@ itip_iface_init(IAnjutaEditorTipIface* iface)
 static void
 iassist_add(IAnjutaEditorAssist* iassist,
             IAnjutaProvider* provider,
+            IAnjutaProviderPriority priority,
             GError** e)
 {
 	Sourceview* sv = ANJUTA_SOURCEVIEW(iassist);
+
+	gint int_priority;
+
+	switch (priority)
+	{
+		case IANJUTA_PROVIDER_PRIORITY_PRIMARY:
+			int_priority = 3000;
+			break;
+
+		case IANJUTA_PROVIDER_PRIORITY_SECONDARY:
+			int_priority = 2000;
+			break;
+
+		case IANJUTA_PROVIDER_PRIORITY_LOW:
+			int_priority = 1000;
+			break;
+
+		default:
+			g_assert_not_reached ();
+	}
+
 	GtkSourceCompletion* completion = gtk_source_view_get_completion(GTK_SOURCE_VIEW(sv->priv->view));
 	gtk_source_completion_add_provider(completion,
-	                                   GTK_SOURCE_COMPLETION_PROVIDER(sourceview_provider_new(sv, provider)),
+	                                   GTK_SOURCE_COMPLETION_PROVIDER(sourceview_provider_new(sv, provider, int_priority)),
 	                                   NULL);
+
 	DEBUG_PRINT("Adding provider: %s", ianjuta_provider_get_name(provider, NULL));
 }
 

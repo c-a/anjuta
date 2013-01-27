@@ -47,13 +47,14 @@ struct _SourceviewProvider
 	
 	Sourceview* sv;
 	IAnjutaProvider* iprov;
+	gint priority;
 	GtkSourceCompletionContext* context;
 	gboolean cancelled;
 };
 
 GType sourceview_provider_get_type (void) G_GNUC_CONST;
 
-GtkSourceCompletionProvider* sourceview_provider_new (Sourceview* sv, IAnjutaProvider* iprov);
+GtkSourceCompletionProvider* sourceview_provider_new (Sourceview* sv, IAnjutaProvider* iprov, gint priority);
 
 G_END_DECLS
 

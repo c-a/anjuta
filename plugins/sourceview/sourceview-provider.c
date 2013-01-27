@@ -117,8 +117,9 @@ sourceview_provider_activate_proposal (GtkSourceCompletionProvider* provider,
 static gint
 sourceview_provider_get_priority (GtkSourceCompletionProvider* provider)
 {
-	/* Always the highest priority */
-	return G_MAXINT32;
+	SourceviewProvider* prov = SOURCEVIEW_PROVIDER (provider);
+	
+	return prov->priority;
 }
 
 static void
@@ -155,12 +156,14 @@ sourceview_provider_class_init (SourceviewProviderClass *klass)
 }
 
 GtkSourceCompletionProvider* sourceview_provider_new (Sourceview* sv,
-                                                      IAnjutaProvider* iprov)
+                                                      IAnjutaProvider* iprov,
+                                                      gint priority)
 {
 	GObject* obj = g_object_new (SOURCEVIEW_TYPE_PROVIDER, NULL);
 	SourceviewProvider* prov = SOURCEVIEW_PROVIDER(obj);
 	prov->sv = sv;
 	prov->iprov = g_object_ref (iprov);
+	prov->priority = priority;
 	return GTK_SOURCE_COMPLETION_PROVIDER(obj);
 }
 
