@@ -154,7 +154,8 @@ install_support (JSLang *plugin)
 	DEBUG_PRINT ("%s", "JSLang: Install support");
 	
 	ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST(plugin->current_editor),
-	                           IANJUTA_PROVIDER(plugin), NULL);
+	                           IANJUTA_PROVIDER(plugin),
+	                           IANJUTA_PROVIDER_PRIORITY_PRIMARY, NULL);
 }
 
 static void
