@@ -686,7 +686,8 @@ python_assist_install (PythonAssist *assist,
 	if (IANJUTA_IS_EDITOR_ASSIST (ieditor))
 	{
 		assist->priv->iassist = IANJUTA_EDITOR_ASSIST (ieditor);
-		ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (ieditor), IANJUTA_PROVIDER(assist), NULL);
+		ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (ieditor),
+		                           IANJUTA_PROVIDER(assist), IANJUTA_PROVIDER_PRIORITY_PRIMARY, NULL);
 		g_signal_connect (ieditor, "cancelled", G_CALLBACK (python_assist_cancelled), assist);
 	}
 	else
