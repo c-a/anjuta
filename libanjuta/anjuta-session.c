@@ -37,6 +37,9 @@
 #include "anjuta-session.h"
 #include "anjuta-utils.h"
 
+
+G_DEFINE_TYPE (AnjutaSession, anjuta_session, ANJUTA_TYPE_SESSION);
+
 struct _AnjutaSessionPriv {
 	gchar *dir_path;
 	GKeyFile *key_file;
@@ -132,7 +135,7 @@ anjuta_session_class_init (AnjutaSessionClass *klass)
 }
 
 static void
-anjuta_session_instance_init (AnjutaSession *obj)
+anjuta_session_init (AnjutaSession *obj)
 {
 	gchar *data_dir, *schema_dir;
 
@@ -162,8 +165,6 @@ anjuta_session_new (const gchar *session_directory)
 	                     "session-directory", session_directory,
 	                     NULL);
 }
-
-ANJUTA_TYPE_BOILERPLATE (AnjutaSession, anjuta_session, G_TYPE_OBJECT)
 
 /**
  * anjuta_session_get_session_directory:
