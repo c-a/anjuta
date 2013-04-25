@@ -52,7 +52,6 @@ anjuta_session_finalize (GObject *object)
 
 	g_free (cobj->priv->dir_path);
 	g_key_file_free (cobj->priv->key_file);
-	g_free (cobj->priv);
 
 	G_OBJECT_CLASS(parent_class)->finalize(object);
 }
@@ -64,12 +63,18 @@ anjuta_session_class_init (AnjutaSessionClass *klass)
 
 	parent_class = g_type_class_peek_parent (klass);
 	object_class->finalize = anjuta_session_finalize;
+
+	g_type_class_add_private (klass, sizeof (AnjutaSessionPriv));
 }
 
 static void
 anjuta_session_instance_init (AnjutaSession *obj)
 {
-	obj->priv = g_new0 (AnjutaSessionPriv, 1);
+	gchar *data_dir, *schema_dir;
+
+	obj->priv = G_TYPE_INSTANCE_GET_PRIVATE (obj, ANJUTA_TYPE_SESSION,
+	                                         AnjutaSessionPriv);
+
 	obj->priv->dir_path = NULL;
 }
 
