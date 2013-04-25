@@ -44,6 +44,60 @@ struct _AnjutaSessionPriv {
 
 static gpointer *parent_class = NULL;
 
+enum {
+	PROP_0, PROP_SESSION_DIRECTORY, N_PROPERTIES
+};
+static GParamSpec *properties[N_PROPERTIES];
+
+static void
+anjuta_session_constructed (GObject *object)
+{
+	AnjutaSession *session = ANJUTA_SESSION (object);
+	gchar *filename;
+
+	session->priv->key_file = g_key_file_new ();
+
+	filename = anjuta_session_get_session_filename (session);
+	g_key_file_load_from_file (session->priv->key_file, filename,
+	                           G_KEY_FILE_NONE, NULL);
+
+	g_free (filename);
+}
+
+static void
+anjuta_session_get_property (GObject *object, guint property_id, GValue *value,
+                             GParamSpec *pspec)
+{
+	AnjutaSession *session = ANJUTA_SESSION (object);
+
+	switch (property_id)
+	{
+		case PROP_SESSION_DIRECTORY:
+			g_value_set_string (value, session->priv->dir_path);
+			break;
+
+		default:
+			G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+	}
+}
+
+static void
+anjuta_session_set_property (GObject *object, guint property_id,
+                             const GValue *value, GParamSpec *pspec)
+{
+	AnjutaSession *session = ANJUTA_SESSION (object);
+
+	switch (property_id)
+	{
+		case PROP_SESSION_DIRECTORY:
+			session->priv->dir_path = g_value_dup_string (value);
+			break;
+
+		default:
+			G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+	}
+}
+
 static void
 anjuta_session_finalize (GObject *object)
 {
@@ -62,8 +116,18 @@ anjuta_session_class_init (AnjutaSessionClass *klass)
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
 	parent_class = g_type_class_peek_parent (klass);
+
+	object_class->constructed = anjuta_session_constructed;
+	object_class->get_property = anjuta_session_get_property;
+	object_class->set_property = anjuta_session_set_property;
 	object_class->finalize = anjuta_session_finalize;
 
+	properties[PROP_SESSION_DIRECTORY] =
+		g_param_spec_string ("session-directory", "Session directory",
+		                     "Session directory", NULL,
+		                     G_PARAM_READABLE |  G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
+
+	g_object_class_install_properties (object_class, N_PROPERTIES, properties);
 	g_type_class_add_private (klass, sizeof (AnjutaSessionPriv));
 }
 
@@ -91,23 +155,12 @@ anjuta_session_instance_init (AnjutaSession *obj)
 AnjutaSession*
 anjuta_session_new (const gchar *session_directory)
 {
-	AnjutaSession *obj;
-	gchar *filename;
-
 	g_return_val_if_fail (session_directory != NULL, NULL);
 	g_return_val_if_fail (g_path_is_absolute (session_directory), NULL);
 
-	obj = ANJUTA_SESSION (g_object_new (ANJUTA_TYPE_SESSION, NULL));
-	obj->priv->dir_path = g_strdup (session_directory);
-
-	obj->priv->key_file = g_key_file_new ();
-
-	filename = anjuta_session_get_session_filename (obj);
-	g_key_file_load_from_file (obj->priv->key_file, filename,
-							   G_KEY_FILE_NONE, NULL);
-	g_free (filename);
-
-	return obj;
+	return g_object_new (ANJUTA_TYPE_SESSION,
+	                     "session-directory", session_directory,
+	                     NULL);
 }
 
 ANJUTA_TYPE_BOILERPLATE (AnjutaSession, anjuta_session, G_TYPE_OBJECT)
