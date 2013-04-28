@@ -436,10 +436,10 @@ on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
 	/* Save geometry */
 	state = gdk_window_get_state (gtk_widget_get_window (GTK_WIDGET (win)));
 	if (state & GDK_WINDOW_STATE_MAXIMIZED) {
-		anjuta_session_set_int (session, "Anjuta", "Maximized", 1);
+		g_settings_set_boolean (win->session_settings, "maximized", TRUE);
 	}
 	if (state & GDK_WINDOW_STATE_FULLSCREEN) {
-		anjuta_session_set_int (session, "Anjuta", "Fullscreen", 1);
+		g_settings_set_boolean (win->session_settings, "fullscreen", TRUE);
 	}
 
 	/* Save geometry only if window is not maximized or fullscreened */
@@ -448,8 +448,7 @@ on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
 	{
 		geometry = anjuta_window_get_geometry (win);
 		if (geometry)
-			anjuta_session_set_string (session, "Anjuta", "Geometry",
-									   geometry);
+			g_settings_set_string (win->session_settings, "geometry", geometry);
 		g_free (geometry);
 	}
 
@@ -471,6 +470,9 @@ on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 	{
 		AnjutaApplication *app;
 
+		g_clear_object (&win->session_settings);
+		win->session_settings = anjuta_session_create_settings (session, "anjuta");
+
 		app = ANJUTA_APPLICATION (gtk_window_get_application (GTK_WINDOW (win)));
 		if (app != NULL)
 		{
@@ -489,8 +491,8 @@ on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 			if (anjuta_application_get_geometry (app))
 			{
 				/* Set new geometry */
-				anjuta_session_set_string (session, "Anjuta", "Geometry",
-				                           anjuta_application_get_geometry (app));
+				g_settings_set_string (win->session_settings, "geometry",
+				                       anjuta_application_get_geometry (app));
 			}
 		}
 	}
@@ -502,12 +504,12 @@ on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 		gchar *layout_file;
 
 		/* Restore geometry */
-		geometry = anjuta_session_get_string (session, "Anjuta", "Geometry");
+		geometry = g_settings_get_string (win->session_settings, "geometry");
 		anjuta_window_set_geometry (win, geometry);
 		g_free (geometry);
 
 		/* Restore window state */
-		if (anjuta_session_get_int (session, "Anjuta", "Fullscreen"))
+		if (g_settings_get_boolean (win->session_settings, "fullscreen"))
 		{
 			/* bug #304495 */
 			AnjutaUI* ui = anjuta_shell_get_ui(shell, NULL);
@@ -519,7 +521,7 @@ on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 			gtk_window_fullscreen (GTK_WINDOW (shell));
 
 		}
-		else if (anjuta_session_get_int (session, "Anjuta", "Maximized"))
+		else if (g_settings_get_boolean (win->session_settings, "maximized"))
 		{
 			gtk_window_maximize (GTK_WINDOW (shell));
 		}
@@ -615,10 +617,8 @@ anjuta_window_dispose (GObject *widget)
 		win->status = NULL;
 	}
 
-	if (win->settings) {
-		g_object_unref (win->settings);
-		win->settings = NULL;
-	}
+	g_clear_object (&win->settings);
+	g_clear_object (&win->session_settings);
 
 	G_OBJECT_CLASS (parent_class)->dispose (widget);
 }

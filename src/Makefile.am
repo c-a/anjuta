@@ -52,10 +52,15 @@ anjuta_LDADD =  \
 
 anjuta_LDFLAGS = $(ANJUTA_LDFLAGS)
 
+# GSettings
 gsettings_in_file = org.gnome.anjuta.gschema.xml.in
 gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
 @INTLTOOL_XML_NOMERGE_RULE@
 @GSETTINGS_RULES@
+
+# Session GSettings
+anjuta_session_gsettings_SCHEMAS = anjuta.session.gschema.xml
+@ANJUTA_SESSION_GSETTINGS_RULES@
 
 noinst_PROGRAMS =  anjuta-shell
 

@@ -1,0 +1,16 @@
+<schemalist>
+  <schema id="anjuta" path="/anjuta/">
+    <key type="b" name="fullscreen">
+      <default>false</default>
+      <summary>Set to true if Anjuta is fullscreen</summary>
+    </key>
+    <key type="b" name="maximized">
+      <default>false</default>
+      <summary>Set to true if Anjuta is maximixed</summary>
+    </key>
+    <key type="s" name="geometry">
+      <default>""</default>
+      <summary>Geometry of the Anjuta window</summary>
+    </key>
+  </schema>
+</schemalist>

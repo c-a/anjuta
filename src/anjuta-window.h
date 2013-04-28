@@ -59,6 +59,7 @@ struct _AnjutaWindow
 	AnjutaUI *ui;
 	AnjutaPreferences *preferences;
 	GSettings* settings;
+	GSettings* session_settings;
 	AnjutaPluginManager *plugin_manager;
 	AnjutaProfileManager *profile_manager;
 	AnjutaSession* session;
