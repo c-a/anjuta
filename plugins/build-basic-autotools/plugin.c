@@ -2112,108 +2112,129 @@ build_update_configuration_menu (BasicAutotoolsPlugin *plugin)
 }
 
 static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
-				 AnjutaSession *session, BasicAutotoolsPlugin *plugin)
+save_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+              AnjutaSession *session)
 {
+	BasicAutotoolsPlugin *ba_plugin = ANJUTA_PLUGIN_BASIC_AUTOTOOLS (plugin);
 	GList *configurations;
 	BuildConfiguration *cfg;
 	const gchar *name;
+	GVariantBuilder build_args_builder, build_env_builder;
 
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
-	configurations = build_configuration_list_to_string_list (plugin->configurations);
-	anjuta_session_set_string_list (session, "Build",
-									"Configuration list",
-									configurations);
-	g_list_foreach (configurations, (GFunc)g_free, NULL);
-	g_list_free (configurations);
+	configurations = build_configuration_list_to_string_list (ba_plugin->configurations);
+	anjuta_util_settings_set_string_list (ba_plugin->session_settings,
+	                                      "configuration-list", configurations);
+	g_list_free_full (configurations, g_free);
 
-	cfg = build_configuration_list_get_selected (plugin->configurations);
+	cfg = build_configuration_list_get_selected (ba_plugin->configurations);
 	if (cfg != NULL)
 	{
 		name = build_configuration_get_name (cfg);
-		anjuta_session_set_string (session, "Build", "Selected Configuration", name);
+		g_settings_set_string (ba_plugin->session_settings, "selected-configuration",
+		                       name);
 	}
-	for (cfg = build_configuration_list_get_first (plugin->configurations); cfg != NULL; cfg = build_configuration_next (cfg))
+
+	g_variant_builder_init (&build_args_builder, G_VARIANT_TYPE ("a{ss}"));
+	g_variant_builder_init (&build_env_builder, G_VARIANT_TYPE ("a{sas}"));
+
+	for (cfg = build_configuration_list_get_first (ba_plugin->configurations); cfg != NULL; cfg = build_configuration_next (cfg))
 	{
-		gchar *key;
 		GList *list;
 
-		key = g_strconcat("BuildArgs/", build_configuration_get_name (cfg), NULL);
-		anjuta_session_set_string (session, "Build",
-			       key,
-			       build_configuration_get_args(cfg));
-		g_free (key);
+		g_variant_builder_add (&build_args_builder, "{ss}",
+		                       build_configuration_get_name (cfg),
+		                       build_configuration_get_args(cfg));
 
 		list = build_configuration_get_variables (cfg);
 		if (list != NULL)
 		{
-			key = g_strconcat("BuildEnv/", build_configuration_get_name (cfg), NULL);
-			anjuta_session_set_string_list (session, "Build",
-				       key,
-			    	   list);
-			g_free (key);
+			GList *node;
+			gchar **strv, **siter;
+
+			strv = g_new (char*, g_list_length (list) + 1);
+			for (node = list, siter = strv; node != NULL;
+			     node = node->next, siter++)
+			{
+				*siter = node->data;
+			}
+			g_list_free (list);
+
+			g_variant_builder_add (&build_env_builder, "{sas}",
+			                       build_configuration_get_name (cfg), strv);
+			g_strfreev (strv);
 		}
 	}
+
+	g_settings_set_value (ba_plugin->session_settings, "build-args",
+	                      g_variant_builder_end (&build_args_builder));
+	g_settings_set_value (ba_plugin->session_settings, "build-env",
+	                      g_variant_builder_end (&build_env_builder));
 }
 
 static void
-on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
-				 AnjutaSession *session, BasicAutotoolsPlugin *plugin)
+load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+              AnjutaSession *session)
 {
+	BasicAutotoolsPlugin *ba_plugin = ANJUTA_PLUGIN_BASIC_AUTOTOOLS (plugin);
 	GList *configurations;
 	gchar *selected;
 	BuildConfiguration *cfg;
+	GVariant *build_args;
+	GVariant *build_env;
 
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
-	configurations = anjuta_session_get_string_list (session, "Build",
-											  "Configuration list");
+	g_clear_object (&ba_plugin->session_settings);
+	ba_plugin->session_settings = anjuta_session_create_settings (session, "build");
 
-	build_configuration_list_from_string_list (plugin->configurations, configurations);
-	g_list_foreach (configurations, (GFunc)g_free, NULL);
-	g_list_free (configurations);
+	configurations = anjuta_util_settings_get_string_list (ba_plugin->session_settings,
+	                                                       "configuration-list");
 
-	selected = anjuta_session_get_string (session, "Build", "Selected Configuration");
-	build_configuration_list_select (plugin->configurations, selected);
+	build_configuration_list_from_string_list (ba_plugin->configurations, configurations);
+	g_list_free_full (configurations, g_free);
+
+	selected = g_settings_get_string (ba_plugin->session_settings, "selected-configuration");
+	build_configuration_list_select (ba_plugin->configurations, selected);
 	g_free (selected);
 
-	for (cfg = build_configuration_list_get_first (plugin->configurations); cfg != NULL; cfg = build_configuration_next (cfg))
-	{
-		gchar *key;
-		gchar *args;
-		GList *env;
+	build_args = g_settings_get_value (ba_plugin->session_settings, "build-args");
+	build_env = g_settings_get_value (ba_plugin->session_settings, "build-env");
 
-		key = g_strconcat("BuildArgs/", build_configuration_get_name (cfg), NULL);
-		args = anjuta_session_get_string (session, "Build", key);
-		g_free (key);
-		if (args != NULL)
+	for (cfg = build_configuration_list_get_first (ba_plugin->configurations); cfg != NULL; cfg = build_configuration_next (cfg))
+	{
+		gchar *args;
+		gchar **env;
+
+		if (g_variant_lookup (build_args, build_configuration_get_name (cfg),
+		                      "s", &args))
 		{
 			build_configuration_set_args (cfg, args);
 			g_free (args);
 		}
 
-		key = g_strconcat("BuildEnv/", build_configuration_get_name (cfg), NULL);
-		env = anjuta_session_get_string_list (session, "Build",	key);
-		g_free (key);
-		if (env != NULL)
+		if (g_variant_lookup (build_env, build_configuration_get_name (cfg),
+		                      "as", &env))
 		{
-			GList *item;
+			gchar **node;
 
 			/* New variables are added at the beginning of the list */
-			for (item = env; item != NULL; item = g_list_next (item))
+			for (node = env; *node != NULL; node++)
 			{
-				build_configuration_set_variable (cfg, (gchar *)item->data);
-				g_free (item->data);
+				build_configuration_set_variable (cfg, *node);
+				g_free (*node);
 			}
-			g_list_free (env);
+			g_free (env);
 		}
-
 	}
 
-	build_project_configured (G_OBJECT (plugin), NULL, NULL, NULL);
+	g_variant_unref (build_args);
+	g_variant_unref (build_env);
+
+	build_project_configured (G_OBJECT (ba_plugin), NULL, NULL, NULL);
 }
 
 static void
@@ -2501,13 +2522,6 @@ activate_plugin (AnjutaPlugin *plugin)
 	}
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
 
-	g_signal_connect (plugin->shell, "save-session",
-					  G_CALLBACK (on_session_save),
-					  plugin);
-	g_signal_connect (plugin->shell, "load-session",
-					  G_CALLBACK (on_session_load),
-					  plugin);
-
 	/* Add action group */
 	ba_plugin->build_action_group =
 		anjuta_ui_add_action_group_entries (ui,
@@ -2568,13 +2582,6 @@ deactivate_plugin (AnjutaPlugin *plugin)
 	gpointer editor;
 
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
-
-	g_signal_handlers_disconnect_by_func (plugin->shell,
-										  G_CALLBACK (on_session_save),
-										  plugin);
-	g_signal_handlers_disconnect_by_func (plugin->shell,
-										  G_CALLBACK (on_session_load),
-										  plugin);
 
 	/* Remove watches */
 	anjuta_plugin_remove_watch (plugin, ba_plugin->fm_watch_id, TRUE);
@@ -2681,6 +2688,8 @@ basic_autotools_plugin_class_init (GObjectClass *klass)
 
 	plugin_class->activate = activate_plugin;
 	plugin_class->deactivate = deactivate_plugin;
+	plugin_class->load_session = load_session;
+	plugin_class->save_session = save_session;
 	klass->dispose = dispose;
 	klass->finalize = finalize;
 }

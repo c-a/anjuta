@@ -1,0 +1,20 @@
+<schemalist>
+  <schema id="build" path="/build/">
+    <key type="as" name="configuration-list">
+      <default>[]</default>
+      <summary>List of build configurations</summary>
+    </key>
+    <key type="s" name="selected-configuration">
+      <default>""</default>
+      <summary>The currently selected build configuration</summary>
+    </key>
+    <key type="a{ss}" name="build-args">
+      <default>{}</default>
+      <summary>Dictionary of build arguments</summary>
+    </key>
+    <key type="a{sas}" name="build-env">
+      <default>{}</default>
+      <summary>Dictionary of build environment lists</summary>
+    </key>
+  </schema>
+</schemalist>

@@ -87,6 +87,7 @@ struct _BasicAutotoolsPlugin{
 
 	/* Settings */
 	GSettings *settings;
+	GSettings *session_settings;
 };
 
 struct _BasicAutotoolsPluginClass{
