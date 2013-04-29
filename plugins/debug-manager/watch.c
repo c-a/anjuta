@@ -39,12 +39,14 @@ struct _ExprWatch
 	AnjutaPlugin *plugin;
 	
 	GtkWidget *scrolledwindow;
-	DebugTree *debug_tree;	
+	DebugTree *debug_tree;
 	DmaDebuggerQueue *debugger;
 	
 	/* Menu action */
 	GtkActionGroup *action_group;
 	GtkActionGroup *toggle_group;
+
+	GSettings *session_settings;
 };
 
 struct _InspectDialog
@@ -515,36 +517,31 @@ expr_watch_find_variable_value (ExprWatch *ew, const gchar *name)
 	return debug_tree_find_variable_value (ew->debug_tree, name);
 }
 
-/* Callback for saving session
+/* Functions for saving session
  *---------------------------------------------------------------------------*/
 
-static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *session, ExprWatch *ew)
+void
+expr_watch_load_session (ExprWatch *ew, AnjutaSession *session)
 {
 	GList *list;
 
-	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
-		return;
-
-	list = debug_tree_get_full_watch_list (ew->debug_tree);
-	if (list != NULL)
-		anjuta_session_set_string_list (session, "Debugger", "Watch", list);
-	g_list_foreach (list, (GFunc)g_free, NULL);
-    g_list_free (list);
-}
-
-static void
-on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *session, ExprWatch *ew)
-{
-	GList *list;
-
-	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
-		return;
+	g_clear_object (&ew->session_settings);
+	ew->session_settings = anjuta_session_create_settings (session, "debugger");
 
 	debug_tree_remove_all (ew->debug_tree);
-	list = anjuta_session_get_string_list (session, "Debugger", "Watch");
+	list = anjuta_util_settings_get_string_list (ew->session_settings, "watches");
 	if (list != NULL)
 		debug_tree_add_full_watch_list (ew->debug_tree, list);
+}
+
+void
+expr_watch_save_session (ExprWatch *ew, AnjutaSession *session)
+{
+	GList *list;
+
+	list = debug_tree_get_full_watch_list (ew->debug_tree);
+	anjuta_util_settings_set_string_list (ew->session_settings, "watches", list);
+	g_list_free_full (list, g_free);
 }
 
 /* Constructor & Destructor
@@ -560,12 +557,6 @@ expr_watch_new (AnjutaPlugin *plugin)
 	create_expr_watch_gui (ew);
 	ew->debugger = dma_debug_manager_get_queue (ANJUTA_PLUGIN_DEBUG_MANAGER (plugin));
 
-	/* Connect to Load and Save event */
-	g_signal_connect (ew->plugin->shell, "save-session",
-					  G_CALLBACK (on_session_save), ew);
-    	g_signal_connect (ew->plugin->shell, "load-session",
-					  G_CALLBACK (on_session_load), ew);
-	
 	/* Add watch window */
 	anjuta_shell_add_widget (ew->plugin->shell,
 							 ew->scrolledwindow,
@@ -596,5 +587,7 @@ expr_watch_destroy (ExprWatch * ew)
 
 	debug_tree_free (ew->debug_tree);
 	gtk_widget_destroy (ew->scrolledwindow);
+	g_clear_object (&ew->session_settings);
+
 	g_free (ew);
 }

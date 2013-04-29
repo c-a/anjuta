@@ -44,6 +44,9 @@ void breakpoints_dbase_destroy (BreakpointsDBase * bd);
 /* Handler for breakpoint toggle on double clicking line marks gutter */
 void breakpoint_toggle_handler(GtkAction * action, gint line_number, BreakpointsDBase *bd);
 
+void breakpoints_dbase_save_session (BreakpointsDBase *bd, AnjutaSession *session);
+void breakpoints_dbase_load_session (BreakpointsDBase *bd, AnjutaSession *session);
+
 G_END_DECLS
 											
 #endif

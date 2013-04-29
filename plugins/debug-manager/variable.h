@@ -28,4 +28,7 @@ typedef struct _DmaVariableDBase DmaVariableDBase;
 DmaVariableDBase *dma_variable_dbase_new (DebugManagerPlugin *plugin);
 void dma_variable_dbase_free (DmaVariableDBase *self);
 
+void dma_variable_dbase_load_session (DmaVariableDBase *self, AnjutaSession *session);
+void dma_variable_dbase_save_session (DmaVariableDBase *self, AnjutaSession *session);
+
 #endif

@@ -365,19 +365,39 @@ enable_log_view (DebugManagerPlugin *this, gboolean enable)
 }
 
 static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
-                                 AnjutaSession *session, DebugManagerPlugin *plugin)
+dma_plugin_save_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                         AnjutaSession *session)
 {
+	DebugManagerPlugin *this = ANJUTA_PLUGIN_DEBUG_MANAGER (plugin);
+
 	if (phase == ANJUTA_SESSION_PHASE_START)
-		enable_log_view (plugin, FALSE);
+		enable_log_view (this, FALSE);
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
 	/* Close debugger when session changed */
-	if (plugin->queue)
+	if (this->queue)
 	{
-		dma_queue_abort (plugin->queue);
+		dma_queue_abort (this->queue);
 	}
+
+	dma_variable_dbase_save_session (this->variable, session);
+	breakpoints_dbase_save_session (this->breakpoints, session);
+	dma_start_save_session (this->start, session);
+}
+
+static void
+dma_plugin_load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                         AnjutaSession *session)
+{
+	DebugManagerPlugin *this = ANJUTA_PLUGIN_DEBUG_MANAGER (plugin);
+
+	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
+		return;
+
+	dma_variable_dbase_load_session (this->variable, session);
+	breakpoints_dbase_load_session (this->breakpoints, session);
+	dma_start_load_session (this->start, session);
 }
 
 /* State functions
@@ -1143,10 +1163,6 @@ dma_plugin_activate (AnjutaPlugin* plugin)
 								 value_added_current_editor,
 								 value_removed_current_editor, NULL);
 
-    /* Connect to save session */
-	g_signal_connect (G_OBJECT (plugin->shell), "save_session",
-                                 G_CALLBACK (on_session_save), plugin);
-
 	return TRUE;
 }
 
@@ -1163,7 +1179,6 @@ dma_plugin_deactivate (AnjutaPlugin* plugin)
 	/* Stop debugger */
 	dma_plugin_debugger_stopped (this, 0);
 
-	g_signal_handlers_disconnect_by_func (plugin->shell, G_CALLBACK (on_session_save), plugin);
 	g_signal_handlers_disconnect_matched (plugin, G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, plugin);
 
 	anjuta_plugin_remove_watch (plugin, this->project_watch_id, FALSE);
@@ -1306,6 +1321,8 @@ dma_plugin_class_init (GObjectClass* klass)
 
 	plugin_class->activate = dma_plugin_activate;
 	plugin_class->deactivate = dma_plugin_deactivate;
+	plugin_class->load_session = dma_plugin_load_session;
+	plugin_class->save_session = dma_plugin_save_session;
 	klass->dispose = dma_plugin_dispose;
 	klass->finalize = dma_plugin_finalize;
 }

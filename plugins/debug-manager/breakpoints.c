@@ -99,6 +99,8 @@ struct _BreakpointsDBase
 	GtkBuilder *bxml;
 	gchar *cond_history, *loc_history;
 
+	GSettings *session_settings;
+
 	/* Widgets */
 	GtkWidget *window;
 	GtkTreeView *treeview;
@@ -1356,17 +1358,14 @@ on_debugger_stopped (BreakpointsDBase *bd)
 }
 
 
-/* Saving preferences callbacks
+/* Saving preferences functions
  *---------------------------------------------------------------------------*/
 
-static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *session, BreakpointsDBase *bd)
+void
+breakpoints_dbase_save_session (BreakpointsDBase *bd, AnjutaSession *session)
 {
 	GList *bi_list;
 	GList *list = NULL;
-
-	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
-		return;
 
 	bi_list = breakpoints_dbase_get_breakpoint_list (bd);
 	for (; bi_list != NULL; bi_list = g_list_delete_link (bi_list, bi_list))
@@ -1385,22 +1384,20 @@ on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *se
 		}
 	}
 	list = g_list_reverse (list);
-	if (list != NULL)
-		anjuta_session_set_string_list (session, "Debugger", "Breakpoint", list);
-	g_list_foreach (list, (GFunc)g_free, NULL);
-	g_list_free (list);
+	anjuta_util_settings_set_string_list (bd->session_settings, "breakpoints", list);
+	g_list_free_full (list, g_free);
 }
 
-static void
-on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *session, BreakpointsDBase *bd)
+void
+breakpoints_dbase_load_session (BreakpointsDBase *bd, AnjutaSession *session)
 {
 	GList *list;
 
-	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
-		return;
+	g_clear_object (&bd->session_settings);
+	bd->session_settings = anjuta_session_create_settings (session, "debugger");
 
 	breakpoints_dbase_remove_all (bd);
-	list = anjuta_session_get_string_list (session, "Debugger", "Breakpoint");
+	list = anjuta_util_settings_get_string_list (bd->session_settings, "breakpoints");
 	for (; list != NULL; list = g_list_delete_link (list, list))
 	{
 		BreakpointItem *bi;
@@ -2073,12 +2070,6 @@ breakpoints_dbase_new (DebugManagerPlugin *plugin)
 	/* Create graphical user inteface */
 	create_breakpoint_gui (bd);
 
-	/* Connect to Load and Save event */
-	g_signal_connect (ANJUTA_PLUGIN(bd->plugin)->shell, "save-session",
-				  G_CALLBACK (on_session_save), bd);
-	g_signal_connect (ANJUTA_PLUGIN(bd->plugin)->shell, "load-session",
-				  G_CALLBACK (on_session_load), bd);
-
 	/* Connect on load program */
 	g_signal_connect_swapped (bd->plugin, "program-loaded", G_CALLBACK (on_program_loaded), bd);
 	g_signal_connect_swapped (bd->plugin, "debugger-started", G_CALLBACK (on_debugger_started), bd);
@@ -2120,6 +2111,7 @@ breakpoints_dbase_destroy (BreakpointsDBase * bd)
 
 	g_free (bd->cond_history);
 	g_free (bd->loc_history);
+	g_clear_object (&bd->session_settings);
 
 	g_free (bd);
 }

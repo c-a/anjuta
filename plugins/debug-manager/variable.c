@@ -248,6 +248,21 @@ on_program_started (DmaVariableDBase *self)
 	g_signal_connect_swapped (self->plugin, "program-running", G_CALLBACK (on_program_running), self);
 }
 
+/* Functions for saving session
+ *---------------------------------------------------------------------------*/
+
+void
+dma_variable_dbase_load_session (DmaVariableDBase *self, AnjutaSession *session)
+{
+	expr_watch_load_session (self->watch, session);
+}
+
+void
+dma_variable_dbase_save_session (DmaVariableDBase *self, AnjutaSession *session)
+{
+	expr_watch_save_session (self->watch, session);
+}
+
 /* Constructor & Destructor
  *---------------------------------------------------------------------------*/
 

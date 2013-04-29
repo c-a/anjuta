@@ -40,6 +40,9 @@ enum {
 ExprWatch* expr_watch_new (AnjutaPlugin *plugin);
 void expr_watch_destroy (ExprWatch *ew);
 
+void expr_watch_load_session (ExprWatch *ew, AnjutaSession *session);
+void expr_watch_save_session (ExprWatch *ew, AnjutaSession *session);
+
 gchar* expr_watch_find_variable_value (ExprWatch *ew, const gchar *name);
 
 #endif

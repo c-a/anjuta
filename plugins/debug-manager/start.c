@@ -122,6 +122,8 @@ struct _DmaStart
 
 	DmaDebuggerQueue *debugger;
 
+	GSettings *session_settings;
+
 	gboolean stop_at_beginning;
 	GList *source_dirs;
 
@@ -254,43 +256,35 @@ free_source_directories (GList *dirs)
 	g_list_free (dirs);
 }
 
-/* Callback for saving session
+/* Functions for saving session
  *---------------------------------------------------------------------------*/
 
-static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *session, DmaStart *self)
+void
+dma_start_save_session (DmaStart *self, AnjutaSession *session)
 {
-	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
-		return;
 
-	anjuta_session_set_string_list (session, "Debugger", "Source directories", self->source_dirs);
-	anjuta_session_set_int (session, "Debugger", "Stop at beginning", self->stop_at_beginning + 1);
-	anjuta_session_set_string (session, "Debugger", "Remote target", self->remote_debugger);
+	anjuta_util_settings_set_string_list (self->session_settings, "source-directories", self->source_dirs);
+	g_settings_set_boolean (self->session_settings, "stop-at-beginning", self->stop_at_beginning);
+	g_settings_set_string (self->session_settings, "remote-debugger", self->remote_debugger);
 }
 
-static void on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *session, DmaStart *self)
+void
+dma_start_load_session (DmaStart *self, AnjutaSession *session)
 {
-	gint stop_at_beginning;
-
-	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
-		return;
+	g_clear_object (&self->session_settings);
+	self->session_settings = anjuta_session_create_settings (session, "debugger");
 
 	/* Initialize source_dirs */
- 	if (self->source_dirs != NULL)
-	{		
- 		g_list_foreach (self->source_dirs, (GFunc)g_free, NULL);
- 		g_list_free (self->source_dirs);
- 	}
- 	self->source_dirs = anjuta_session_get_string_list (session, "Debugger", "Source directories");
+	g_list_free_full (self->source_dirs, g_free);
+	self->source_dirs = anjuta_util_settings_get_string_list (self->session_settings,
+	                                                           "source-directories");
 
-	stop_at_beginning = anjuta_session_get_int (session, "Debugger", "Stop at beginning");
-	if (stop_at_beginning == 0)
-		self->stop_at_beginning = TRUE;	/* Default value */
-	else
-		self->stop_at_beginning = stop_at_beginning - 1;
-	
+	self->stop_at_beginning = g_settings_get_boolean (self->session_settings,
+	                                                  "stop-at-beginning");
+
 	g_free (self->remote_debugger);
-	self->remote_debugger = anjuta_session_get_string (session, "Debugger", "Remote target");
+	self->remote_debugger = g_settings_get_string (self->session_settings,
+	                                               "remote-debugger");
 }
 
 /* Attach to process private functions
@@ -1512,20 +1506,14 @@ dma_start_new (DebugManagerPlugin *plugin)
 	self->debugger = dma_debug_manager_get_queue (plugin);
 	self->source_dirs = NULL;
 	self->build_target = NULL;
-	
-	g_signal_connect (self->plugin->shell, "save-session",
-					  G_CALLBACK (on_session_save), self);
-    g_signal_connect (self->plugin->shell, "load-session",
-					  G_CALLBACK (on_session_load), self);
-	
+
 	return self;
 }
 
 void
 dma_start_free (DmaStart *this)
 {
-	g_signal_handlers_disconnect_by_func (this->plugin->shell, G_CALLBACK (on_session_save), this);
-    g_signal_handlers_disconnect_by_func (this->plugin->shell, G_CALLBACK (on_session_load), this);
+	g_clear_object (&this->session_settings);
 	g_list_foreach (this->source_dirs, (GFunc)g_free, NULL);
 	g_list_free (this->source_dirs);
 	g_free (this);

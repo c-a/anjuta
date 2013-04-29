@@ -5,10 +5,15 @@ dist_anjuta_glade_DATA = anjuta-debug-manager.ui
 anjuta_uidir = $(anjuta_ui_dir)
 dist_anjuta_ui_DATA =  anjuta-debug-manager.xml
 
+# GSettings
 gsettings_in_files = org.gnome.anjuta.plugins.debug-manager.gschema.xml.in
 gsettings_SCHEMAS = $(gsettings_in_files:.xml.in=.xml)
 @INTLTOOL_XML_NOMERGE_RULE@
 @GSETTINGS_RULES@
+
+# Session GSettings
+anjuta_session_gsettings_SCHEMAS = debugger.session.gschema.xml
+@ANJUTA_SESSION_GSETTINGS_RULES@
 
 plugin_in_files = anjuta-debug-manager.plugin.in
 %.plugin: %.plugin.in $(INTLTOOL_MERGE) $(wildcard $(top_srcdir)/po/*po) ; $(INTLTOOL_MERGE) $(top_srcdir)/po $< $@ -d -u -c $(top_builddir)/po/.intltool-merge-cache
