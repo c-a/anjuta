@@ -54,10 +54,15 @@ libanjuta_document_manager_la_SOURCES= \
 	search-filter-file-command.c \
 	search-filter-file-command.h
 
+# GSettings
 gsettings_in_file = org.gnome.anjuta.document-manager.gschema.xml.in
 gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
 @INTLTOOL_XML_NOMERGE_RULE@
 @GSETTINGS_RULES@
+
+# Session GSettings
+anjuta_session_gsettings_SCHEMAS = document-manager.session.gschema.xml
+@ANJUTA_SESSION_GSETTINGS_RULES@
 
 EXTRA_DIST = \
 	$(plugin_in_files) \

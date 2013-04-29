@@ -1,0 +1,23 @@
+<schemalist>
+  <schema id="document-manager" path="/document-manager/">
+    <key type="s" name="bookmarks">
+      <default>""</default>
+      <summary>Bookmarks</summary>
+    </key>
+  </schema>
+
+  <schema id="document-manager.search-box" path="/document-manager/search-box/">
+    <key type="b" name="case-sensitive">
+      <default>true</default>
+      <summary>Whether the search is case sensitive</summary>
+    </key>
+    <key type="b" name="regular-expression">
+      <default>false</default>
+      <summary>Whether the search is a regular expression</summary>
+    </key>
+    <key type="b" name="highlight-match">
+      <default>true</default>
+      <summary>Whether all matches should be highlighted</summary>
+    </key>
+  </schema>
+</schemalist>

@@ -57,6 +57,8 @@ struct _AnjutaBookmarksPrivate
 	IAnjutaSymbolQuery* query_scope;
 	GtkWidget* menu;
 	DocmanPlugin* docman;
+
+	GSettings* session_settings;
 };
 
 enum
@@ -385,7 +387,9 @@ anjuta_bookmarks_finalize (GObject *object)
 	anjuta_shell_remove_widget (ANJUTA_PLUGIN(priv->docman)->shell,
 								priv->window,
 								NULL);
-	
+
+	g_clear_object (&priv->session_settings);
+
 	G_OBJECT_CLASS (anjuta_bookmarks_parent_class)->finalize (object);
 }
 
@@ -777,10 +781,9 @@ anjuta_bookmarks_session_save (AnjutaBookmarks* bookmarks, AnjutaSession* sessio
 	}
 	xmlFreeTextWriter(writer);
 
-	anjuta_session_set_string (session,
-							   "Document Manager",
-							   "bookmarks",
-							   (const gchar*) buf->content);
+	g_settings_set_string (priv->session_settings, "bookmarks",
+	                       (const gchar*)buf->content);
+
 	xmlBufferFree(buf);
 	
 	/* Clear the model */
@@ -873,12 +876,15 @@ read_bookmarks (AnjutaBookmarks* bookmarks, xmlNodePtr marks)
 void
 anjuta_bookmarks_session_load (AnjutaBookmarks* bookmarks, AnjutaSession* session)
 {
-	AnjutaBookmarksPrivate* priv = BOOKMARKS_GET_PRIVATE(bookmarks);	
-	gchar* xml_string = anjuta_session_get_string (session,
-												   "Document Manager",
-												   "bookmarks");
+	AnjutaBookmarksPrivate* priv = BOOKMARKS_GET_PRIVATE(bookmarks);
+	gchar* xml_string;
+
 	DEBUG_PRINT("Session load");
-	
+
+	g_clear_object (&priv->session_settings);
+	priv->session_settings = anjuta_session_create_settings (session, "document-manager");
+
+	xml_string = g_settings_get_string (priv->session_settings, "bookmarks");
 	if (!xml_string || !strlen(xml_string))
 		return;
 	xmlDocPtr doc = xmlParseMemory (xml_string,

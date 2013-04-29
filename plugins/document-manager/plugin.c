@@ -1369,9 +1369,11 @@ add_new_default_document (gpointer data)
 }
 
 static void
-on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
-				 AnjutaSession *session, DocmanPlugin *plugin)
+load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+              AnjutaSession *session)
 {
+	DocmanPlugin *dplugin = ANJUTA_PLUGIN_DOCMAN (plugin);
+
 	if (phase == ANJUTA_SESSION_PHASE_END)
 	{
 		/* Add a empty buffer if the document manager is used "Standalone" */
@@ -1387,24 +1389,25 @@ on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 		anjuta_plugin_description_get_boolean (desc, "Configuration", "Standalone", &standalone);
 		if (standalone)
 		{
-			g_idle_add (add_new_default_document, plugin->docman);
+			g_idle_add (add_new_default_document, dplugin->docman);
 		}
 	}
 
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
-	anjuta_bookmarks_session_load (ANJUTA_BOOKMARKS (plugin->bookmarks),
+	anjuta_bookmarks_session_load (ANJUTA_BOOKMARKS (dplugin->bookmarks),
 								   session);
 	
-	search_box_session_load (SEARCH_BOX (plugin->search_box),
+	search_box_session_load (SEARCH_BOX (dplugin->search_box),
 	                         session);
 }
 
 static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
-				 AnjutaSession *session, DocmanPlugin *plugin)
+save_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+              AnjutaSession *session)
 {
+	DocmanPlugin *dplugin = ANJUTA_PLUGIN_DOCMAN (plugin);
 	GSettings *loader_settings;
 	GList *docwids, *node, *files;
 
@@ -1415,7 +1418,7 @@ on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
 
 	files = anjuta_util_settings_get_string_list (loader_settings, "files"); /* probably NULL */
 	/* buffers list is ordered last-opened to first-opened */
-	docwids = anjuta_docman_get_all_doc_widgets (ANJUTA_DOCMAN (plugin->docman));
+	docwids = anjuta_docman_get_all_doc_widgets (ANJUTA_DOCMAN (dplugin->docman));
 	if (docwids)
 	{
 		for (node = docwids; node != NULL; node = g_list_next (node))
@@ -1449,10 +1452,10 @@ on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
 
 	g_object_unref (loader_settings);
 
-	anjuta_bookmarks_session_save (ANJUTA_BOOKMARKS (plugin->bookmarks),
+	anjuta_bookmarks_session_save (ANJUTA_BOOKMARKS (dplugin->bookmarks),
 								   session);
 
-	search_box_session_save (SEARCH_BOX (plugin->search_box), session);
+	search_box_session_save (SEARCH_BOX (dplugin->search_box), session);
 }
 
 static gboolean
@@ -1732,14 +1735,6 @@ activate_plugin (AnjutaPlugin *plugin)
 	g_assert (popup_menu != NULL && GTK_IS_MENU (popup_menu));
 	anjuta_docman_set_popup_menu (ANJUTA_DOCMAN (docman), popup_menu);
 
-
-	/* Connect to save session */
-	g_signal_connect (G_OBJECT (plugin->shell), "save-session",
-					  G_CALLBACK (on_session_save), plugin);
-	/* Connect to load session */
-	g_signal_connect (G_OBJECT (plugin->shell), "load-session",
-					  G_CALLBACK (on_session_load), plugin);
-
 	/* Connect to save prompt */
 	g_signal_connect (G_OBJECT (plugin->shell), "save-prompt",
 					  G_CALLBACK (on_save_prompt), plugin);
@@ -1771,8 +1766,6 @@ deactivate_plugin (AnjutaPlugin *plugin)
 
 	eplugin = ANJUTA_PLUGIN_DOCMAN (plugin);
 
-	g_signal_handlers_disconnect_by_func (G_OBJECT (plugin->shell),
-										  G_CALLBACK (on_session_save), plugin);
 	g_signal_handlers_disconnect_by_func (G_OBJECT (plugin->shell),
 										  G_CALLBACK (on_save_prompt), plugin);
 
@@ -1854,6 +1847,8 @@ docman_plugin_class_init (GObjectClass *klass)
 
 	plugin_class->activate = activate_plugin;
 	plugin_class->deactivate = deactivate_plugin;
+	plugin_class->load_session = load_session;
+	plugin_class->save_session = save_session;
 	klass->dispose = dispose;
 	klass->finalize = finalize;
 }

@@ -72,9 +72,10 @@ struct _SearchBoxPrivate
 	GtkAction* case_action;
 	GtkAction* highlight_action;
 	GtkAction* regex_action;
-	
+
+	GSettings* session_settings;
 	gboolean case_sensitive;
-	gboolean highlight_all;	
+	gboolean highlight_all;
 	gboolean regex_mode;
 	
 	IAnjutaEditorCell *start_highlight;
@@ -1062,8 +1063,10 @@ search_box_finalize (GObject *object)
 	SearchBox *search_box = SEARCH_BOX (object);
 
 	if (search_box->priv->idle_id) g_source_remove (search_box->priv->idle_id);
-	if (search_box->priv->start_highlight) g_object_unref (search_box->priv->start_highlight);
-	if (search_box->priv->end_highlight) g_object_unref (search_box->priv->end_highlight);
+
+	g_clear_object (&search_box->priv->session_settings);
+	g_clear_object (&search_box->priv->start_highlight);
+	g_clear_object (&search_box->priv->end_highlight);
 
 	G_OBJECT_CLASS (search_box_parent_class)->finalize (object);
 }
@@ -1211,19 +1214,30 @@ void search_box_set_replace_string (SearchBox* search_box, const gchar* replace)
 void
 search_box_session_load (SearchBox* search_box, AnjutaSession* session)
 {
-	g_return_if_fail (search_box != NULL && SEARCH_IS_BOX(search_box));
+	SearchBoxPrivate* priv;
 
-	search_box->priv->case_sensitive = anjuta_session_get_int (session, "Search Box", "Case Sensitive") ? TRUE : FALSE;
-	search_box->priv->regex_mode = anjuta_session_get_int (session, "Search Box", "Regular Expression") ? TRUE : FALSE;
-	search_box->priv->highlight_all = anjuta_session_get_int (session, "Search Box", "Highlight Match") ? TRUE : FALSE;
+	g_return_if_fail (SEARCH_IS_BOX(search_box));
+
+	priv = search_box->priv;
+
+	g_clear_object (&priv->session_settings);
+	priv->session_settings = anjuta_session_create_settings (session, "document-manager.search-box");
+
+	priv->case_sensitive = g_settings_get_boolean (priv->session_settings, "case-sensitive");
+	priv->regex_mode = g_settings_get_boolean (priv->session_settings, "regular-expression");
+	priv->highlight_all = g_settings_get_boolean (priv->session_settings, "highlight-match");
 }
 
 void 
 search_box_session_save (SearchBox* search_box, AnjutaSession* session)
 {
-	g_return_if_fail (search_box != NULL && SEARCH_IS_BOX(search_box));
+	SearchBoxPrivate* priv;
 
-	anjuta_session_set_int (session, "Search Box", "Case Sensitive", search_box->priv->case_sensitive ? 1 : 0);
-	anjuta_session_set_int (session, "Search Box", "Regular Expression", search_box->priv->regex_mode ? 1 : 0);
-	anjuta_session_set_int (session, "Search Box", "Highlight Match", search_box->priv->highlight_all ? 1 : 0);
+	g_return_if_fail (SEARCH_IS_BOX(search_box));
+
+	priv = search_box->priv;
+
+	g_settings_set_boolean (priv->session_settings, "case-sensitive", priv->case_sensitive);
+	g_settings_set_boolean (priv->session_settings, "regular-expression", priv->regex_mode);
+	g_settings_set_boolean (priv->session_settings, "highlight-match", priv->highlight_all);
 }
