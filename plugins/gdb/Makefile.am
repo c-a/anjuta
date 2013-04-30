@@ -20,6 +20,10 @@ plugin_in_files = anjuta-gdb.plugin.in
 anjuta_plugindir = $(anjuta_plugin_dir)
 dist_anjuta_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
 
+# Session GSettings
+anjuta_session_gsettings_SCHEMAS = gdb.session.gschema.xml
+@ANJUTA_SESSION_GSETTINGS_RULES@
+
 AM_CPPFLAGS= \
 	$(WARN_CFLAGS) \
 	$(DEPRECATED_FLAGS) \

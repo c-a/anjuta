@@ -40,9 +40,6 @@
 
 #define ICON_FILE "anjuta-gdb.plugin.png"
 
-#define GDB_SECTION "Gdb"
-#define GDB_PRINTER_KEY "PrettyPrinter"
-
 
 /* column of the printer list view */
 enum {
@@ -407,11 +404,15 @@ gdb_unmerge_preferences (AnjutaPreferences* prefs)
 GList *
 gdb_load_pretty_printers (AnjutaSession *session)
 {
+	GSettings *session_settings;
 	GList *session_list;
 	GList *list = NULL;
 	GList *item;
 
-	session_list = anjuta_session_get_string_list (session, GDB_SECTION, GDB_PRINTER_KEY);
+	session_settings = anjuta_session_create_settings (session, "gdb");
+	session_list = anjuta_util_settings_get_string_list (session_settings, "pretty-printers");
+	g_object_unref (session_settings);
+
 	for (item = g_list_first (session_list); item != NULL; item = g_list_next (item))
 	{
 		GdbPrettyPrinter *printer;
@@ -445,9 +446,12 @@ gdb_load_pretty_printers (AnjutaSession *session)
 gboolean
 gdb_save_pretty_printers (AnjutaSession *session, GList *list)
 {
+	GSettings *session_settings;
 	GList *session_list = NULL;
 	GList *item;
-	
+
+	session_settings = anjuta_session_create_settings (session, "gdb");
+
 	for (item = g_list_first (list); item != NULL; item = g_list_next (item))
 	{
 		GdbPrettyPrinter *printer = (GdbPrettyPrinter *)item->data;
@@ -458,10 +462,12 @@ gdb_save_pretty_printers (AnjutaSession *session, GList *list)
 		session_list = g_list_prepend (session_list, name);
 	}
 	session_list = g_list_reverse (session_list);
-	anjuta_session_set_string_list (session, GDB_SECTION, GDB_PRINTER_KEY, session_list);
-	g_list_foreach (session_list, (GFunc)g_free, NULL);
-	g_list_free (session_list);
 	
+	anjuta_util_settings_set_string_list (session_settings, "pretty-printers", session_list);
+	g_list_free_full (session_list, g_free);
+
+	g_object_unref (session_settings);
+
 	return FALSE;
 }
 

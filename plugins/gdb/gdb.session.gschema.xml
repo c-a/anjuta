@@ -1,0 +1,8 @@
+<schemalist>
+  <schema id="gdb" path="/gdb/">
+    <key type="as" name="pretty-printers">
+      <default>[]</default>
+      <summary>List of gdb pretty printers</summary>
+    </key>
+  </schema>
+</schemalist>

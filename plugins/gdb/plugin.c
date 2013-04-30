@@ -276,16 +276,23 @@ quote_expression (const gchar *expression) {
  *---------------------------------------------------------------------------*/
 
 static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *session, GdbPlugin *this)
+gdb_plugin_save_session(AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                        AnjutaSession *session)
 {
+	GdbPlugin *this = ANJUTA_PLUGIN_GDB (plugin);
+
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
 	gdb_save_pretty_printers (session, this->pretty_printers);
 }
 
-static void on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *session, GdbPlugin *this)
+static void
+gdb_plugin_load_session(AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                        AnjutaSession *session)
 {
+	GdbPlugin *this = ANJUTA_PLUGIN_GDB (plugin);
+
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
@@ -305,13 +312,6 @@ gdb_plugin_activate_plugin (AnjutaPlugin* plugin)
 	DEBUG_PRINT ("%s", "GDB: Activating Gdb plugin...");
 	this->pretty_printers = NULL;
 
-	/* Connect to session signal */
-	g_signal_connect (plugin->shell, "save-session",
-					  G_CALLBACK (on_session_save), this);
-	g_signal_connect (plugin->shell, "load-session",
-					  G_CALLBACK (on_session_load), this);
-	
-	
 	return TRUE;
 }
 
@@ -393,6 +393,8 @@ gdb_plugin_class_init (GObjectClass* klass)
 
 	plugin_class->activate = gdb_plugin_activate_plugin;
 	plugin_class->deactivate = gdb_plugin_deactivate_plugin;
+	plugin_class->load_session = gdb_plugin_load_session;
+	plugin_class->save_session = gdb_plugin_save_session;
 	klass->dispose = gdb_plugin_dispose;
 	klass->finalize = gdb_plugin_finalize;
 }
