@@ -45,6 +45,8 @@ struct _ProjectManagerPlugin{
 
 	AnjutaPmProject *project;
 
+	GSettings *session_settings;
+
 	AnjutaUI *ui;
 	AnjutaPreferences *prefs;
 	GbfProjectView *view;
@@ -61,9 +63,6 @@ struct _ProjectManagerPlugin{
 	gchar *current_editor_uri;
 	gchar *project_root_uri;
 	GFile *project_file;
-
-	/* Target shortcuts */
-	GList *shortcuts;
 
 	/* Update state recording */
 	GList *pre_update_sources;

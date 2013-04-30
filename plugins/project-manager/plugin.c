@@ -142,75 +142,6 @@ project_manager_save_session (ProjectManagerPlugin *plugin)
 	g_free (session_dir);
 }
 
-static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
-				 AnjutaSession *session, ProjectManagerPlugin *plugin)
-{
-	GList *list;
-
-	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
-		return;
-
-	/*
-	 * When a project session is being saved (session_by_me == TRUE),
-	 * we should not save the current project uri, because project
-	 * sessions are loaded when the project has already been loaded.
-	 */
-	if (plugin->project_file && !plugin->session_by_me)
-	{
-		GSettings *loader_settings;
-		GList *files;
-
-		loader_settings = anjuta_session_create_settings (session, "file-loader");
-
-		files = anjuta_util_settings_get_string_list (loader_settings, "files");
-		files = g_list_prepend (files, anjuta_session_get_relative_uri_from_file (session, plugin->project_file, NULL));
-
-		anjuta_util_settings_set_string_list (loader_settings, "files", files);
-
-		g_list_free_full (files, g_object_unref);
-		g_object_unref (loader_settings);
-	}
-
-	/* Save shortcuts */
-	list = gbf_project_view_get_shortcut_list (plugin->view);
-	if (list != NULL)
-	{
-    	anjuta_session_set_string_list (session, "Project Manager", "Shortcut", list);
-		g_list_foreach (list, (GFunc)g_free, NULL);
-		g_list_free (list);
-	}
-
-	/* Save expanded node */
-	list = gbf_project_view_get_expanded_list (GBF_PROJECT_VIEW (plugin->view));
-	if (list != NULL)
-	{
-    	anjuta_session_set_string_list (session, "Project Manager", "Expand", list);
-		g_list_foreach (list, (GFunc)g_free, NULL);
-		g_list_free (list);
-	}
-
-}
-
-static void
-on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *session, ProjectManagerPlugin *plugin)
-{
-	GList *list;
-
-	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
-		return;
-
-	list = anjuta_session_get_string_list (session, "Project Manager", "Shortcut");
-	gbf_project_view_set_shortcut_list (GBF_PROJECT_VIEW (plugin->view), list);
-	g_list_foreach (list, (GFunc)g_free, NULL);
-	g_list_free (list);
-
-	list = anjuta_session_get_string_list (session, "Project Manager", "Expand");
-	gbf_project_view_set_expanded_list (GBF_PROJECT_VIEW (plugin->view), list);
-	g_list_foreach (list, (GFunc)g_free, NULL);
-	g_list_free (list);
-}
-
 static gboolean
 on_close_project_idle (gpointer plugin)
 {
@@ -1458,6 +1389,7 @@ static void
 on_profile_scoped (AnjutaProfile *profile, ProjectManagerPlugin *plugin)
 {
 	gchar *session_dir;
+	AnjutaSession *session;
 
 	/* Load gbf project */
 	project_manager_load_gbf (plugin);
@@ -1525,6 +1457,79 @@ project_manager_plugin_close (ProjectManagerPlugin *plugin)
 								  error->message);
 		g_error_free (error);
 	}
+}
+
+static void
+project_manager_plugin_save_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                                     AnjutaSession *session)
+{
+	ProjectManagerPlugin *pm_plugin = ANJUTA_PLUGIN_PROJECT_MANAGER (plugin);
+	GList *list;
+
+	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
+		return;
+
+	/*
+	 * When a project session is being saved (session_by_me == TRUE),
+	 * we should not save the current project uri, because project
+	 * sessions are loaded when the project has already been loaded.
+	 */
+	if (pm_plugin->project_file && !pm_plugin->session_by_me)
+	{
+		GSettings *loader_settings;
+		GList *files;
+
+		loader_settings = anjuta_session_create_settings (session, "file-loader");
+
+		files = anjuta_util_settings_get_string_list (loader_settings, "files");
+		files = g_list_prepend (files, anjuta_session_get_relative_uri_from_file (session, pm_plugin->project_file, NULL));
+
+		anjuta_util_settings_set_string_list (loader_settings, "files", files);
+
+		g_list_free_full (files, g_free);
+		g_object_unref (loader_settings);
+	}
+
+	/* Save shortcuts */
+	list = gbf_project_view_get_shortcut_list (pm_plugin->view);
+	if (list != NULL)
+	{
+		anjuta_util_settings_set_string_list (pm_plugin->session_settings,
+		                                      "shortcuts", list);
+		g_list_free_full (list, g_free);
+	}
+
+	/* Save expanded node */
+	list = gbf_project_view_get_expanded_list (GBF_PROJECT_VIEW (pm_plugin->view));
+	if (list != NULL)
+	{
+		anjuta_util_settings_set_string_list (pm_plugin->session_settings,
+		                                      "expanded-nodes", list);
+		g_list_free_full (list, g_free);
+	}
+
+}
+
+static void
+project_manager_plugin_load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                                     AnjutaSession *session)
+{
+	ProjectManagerPlugin *pm_plugin = ANJUTA_PLUGIN_PROJECT_MANAGER (plugin);
+	GList *list;
+
+	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
+		return;
+
+	g_clear_object (&pm_plugin->session_settings);
+	pm_plugin->session_settings = anjuta_session_create_settings (session, "project-manager");
+
+	list = anjuta_util_settings_get_string_list (pm_plugin->session_settings, "shortcuts");
+	gbf_project_view_set_shortcut_list (GBF_PROJECT_VIEW (pm_plugin->view), list);
+	g_list_free_full (list, g_free);
+
+	list = anjuta_util_settings_get_string_list (pm_plugin->session_settings, "expanded-nodes");
+	gbf_project_view_set_expanded_list (GBF_PROJECT_VIEW (pm_plugin->view), list);
+	g_list_free_full (list, g_free);
 }
 
 static gboolean
@@ -1630,12 +1635,6 @@ project_manager_plugin_activate_plugin (AnjutaPlugin *plugin)
 		anjuta_plugin_add_watch (plugin, IANJUTA_DOCUMENT_MANAGER_CURRENT_DOCUMENT,
 								 value_added_current_editor,
 								 value_removed_current_editor, NULL);
-	/* Connect to save session */
-	g_signal_connect (G_OBJECT (plugin->shell), "save_session",
-					  G_CALLBACK (on_session_save), plugin);
-	g_signal_connect (G_OBJECT (plugin->shell), "load_session",
-					  G_CALLBACK (on_session_load), plugin);
-
 
 	return TRUE;
 }
@@ -1657,12 +1656,6 @@ project_manager_plugin_deactivate_plugin (AnjutaPlugin *plugin)
 		project_manager_plugin_close (pm_plugin);
 
 	/* Disconnect signals */
-	g_signal_handlers_disconnect_by_func (G_OBJECT (plugin->shell),
-										  G_CALLBACK (on_session_save),
-										  plugin);
-	g_signal_handlers_disconnect_by_func (G_OBJECT (plugin->shell),
-										  G_CALLBACK (on_session_load),
-										  plugin);
 	if (pm_plugin->profile != NULL)
 	{
 		g_signal_handlers_disconnect_by_func (G_OBJECT (pm_plugin->profile),
@@ -1672,6 +1665,7 @@ project_manager_plugin_deactivate_plugin (AnjutaPlugin *plugin)
 		                                      G_CALLBACK (on_profile_scoped),
 		                                      plugin);
 	}
+
 	/* Remove watches */
 	anjuta_plugin_remove_watch (plugin, pm_plugin->fm_watch_id, TRUE);
 	anjuta_plugin_remove_watch (plugin, pm_plugin->editor_watch_id, TRUE);
@@ -1683,11 +1677,6 @@ project_manager_plugin_deactivate_plugin (AnjutaPlugin *plugin)
 	anjuta_ui_remove_action_group (pm_plugin->ui, pm_plugin->pm_action_group);
 	anjuta_ui_remove_action_group (pm_plugin->ui,
 								   pm_plugin->popup_action_group);
-
-	/* Remove shortcuts list */
-	g_list_foreach (pm_plugin->shortcuts, (GFunc)g_free, NULL);
-	g_list_free (pm_plugin->shortcuts);
-	pm_plugin->shortcuts = NULL;
 
 	/* Destroy project */
 	anjuta_pm_project_free (pm_plugin->project);
@@ -1725,7 +1714,6 @@ project_manager_plugin_instance_init (GObject *obj)
 	plugin->current_editor_uri = NULL;
 	plugin->session_by_me = FALSE;
 	plugin->close_project_idle = -1;
-	plugin->shortcuts = NULL;
 	plugin->profile = NULL;
 }
 
@@ -1738,6 +1726,9 @@ project_manager_plugin_class_init (GObjectClass *klass)
 
 	plugin_class->activate = project_manager_plugin_activate_plugin;
 	plugin_class->deactivate = project_manager_plugin_deactivate_plugin;
+	plugin_class->load_session = project_manager_plugin_load_session;
+	plugin_class->save_session = project_manager_plugin_save_session;
+
 	klass->dispose = project_manager_plugin_finalize;
 	klass->dispose = project_manager_plugin_dispose;
 }

@@ -1,0 +1,12 @@
+<schemalist>
+  <schema id="project-manager" path="/project-manager/">
+    <key type="as" name="shortcuts">
+      <default>[]</default>
+      <summary>List of shortcuts</summary>
+    </key>
+    <key type="as" name="expanded-nodes">
+      <default>[]</default>
+      <summary>List of expanded nodes</summary>
+    </key>
+  </schema>
+</schemalist>
