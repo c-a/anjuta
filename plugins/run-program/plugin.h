@@ -53,6 +53,7 @@ struct _RunProgramPlugin
 	GtkActionGroup *action_group;
 
 	/* Save data */
+	GSettings *session_settings;
 	gboolean run_in_terminal;
 	gchar **environment_vars;
 	GList *recent_target;

@@ -1,0 +1,24 @@
+<schemalist>
+  <schema id="execution" path="/execution/">
+    <key type="as" name="program-arguments">
+      <default>[]</default>
+      <summary>Arguments to the program</summary>
+    </key>
+    <key type="as" name="program-uri">
+      <default>[]</default>
+      <summary>URI of the program</summary>
+    </key>
+    <key type="b" name="run-in-terminal">
+      <default>false</default>
+      <summary>Whether the program should be run in a terminal</summary>
+    </key>
+    <key type="as" name="working-directories">
+      <default>[]</default>
+      <summary>Directories to run the program in</summary>
+    </key>
+    <key type="as" name="environment-variables">
+      <default>[]</default>
+      <summary>Environment variables set when running the program</summary>
+    </key>
+  </schema>
+</schemalist>

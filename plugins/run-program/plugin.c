@@ -53,21 +53,21 @@ struct _RunProgramPluginClass
  *---------------------------------------------------------------------------*/
 
 static void
-anjuta_session_set_limited_string_list (AnjutaSession *session, const gchar *section, const gchar *key, GList **value)
+g_settings_set_limited_string_list (GSettings *settings, const gchar *key, GList *list)
 {
-	GList *node;
+	GVariantBuilder builder;
+	int i;
 
-	while ((node = g_list_nth (*value, MAX_RECENT_ITEM)) != NULL)
-	{
-		g_free (node->data);
-		*value = g_list_delete_link (*value, node);
-	}
-	anjuta_session_set_string_list (session, section, key, *value);
+	g_variant_builder_init (&builder, G_VARIANT_TYPE_ARRAY);
+	for (i = 0; list != NULL && i <= MAX_RECENT_ITEM; list = list->next, i++)
+		g_variant_builder_add (&builder, "s", list->data);
+
+	g_settings_set_value (settings, key, g_variant_builder_end (&builder));
 }
 
 /* The value argument is a pointer on a GFile list */
 static void
-anjuta_session_set_limited_relative_file_list (AnjutaSession *session, const gchar *section, const gchar *key, GList **value)
+anjuta_session_set_limited_relative_file_list (AnjutaSession *session, GSettings *settings, const gchar *key, GList **value)
 {
 	GList *item;
 	GList *list = NULL;
@@ -83,37 +83,18 @@ anjuta_session_set_limited_relative_file_list (AnjutaSession *session, const gch
 	}
 	list = g_list_reverse (list);
 
-	anjuta_session_set_string_list (session, section, key, list);
+	anjuta_util_settings_set_string_list (settings, key, list);
 
-	g_list_foreach (list, (GFunc)g_free, NULL);
-	g_list_free (list);
-}
-
-static void
-anjuta_session_set_strv (AnjutaSession *session, const gchar *section, const gchar *key, gchar **value)
-{
-	GList *list = NULL;
-
-	if (value != NULL)
-	{
-		for (; *value != NULL; value++)
-		{
-			list = g_list_append (list, *value);
-		}
-		list = g_list_reverse (list);
-	}
-
-	anjuta_session_set_string_list (session, section, key, list);
-	g_list_free (list);
+	g_list_free_full (list, g_free);
 }
 
 static GList*
-anjuta_session_get_relative_file_list (AnjutaSession *session, const gchar *section, const gchar *key)
+anjuta_session_get_relative_file_list (AnjutaSession *session, GSettings *settings, const gchar *key)
 {
 	GList *list;
 	GList *item;
 
- 	list = anjuta_session_get_string_list (session, section, key);
+ 	list = anjuta_util_settings_get_string_list (settings, key);
 	for (item = g_list_first (list); item != NULL; item = g_list_next (item))
 	{
 		GFile *file;
@@ -126,76 +107,32 @@ anjuta_session_get_relative_file_list (AnjutaSession *session, const gchar *sect
 	return list;
 }
 
-static gchar**
-anjuta_session_get_strv (AnjutaSession *session, const gchar *section, const gchar *key)
-{
-	GList *list;
-	gchar **value = NULL;
-
-	list = anjuta_session_get_string_list (session, section, key);
-
-	if (list != NULL)
-	{
-		gchar **var;
-		GList *node;
-
-		value = g_new (gchar *, g_list_length (list) + 1);
-		var = value;
-		for (node = g_list_first (list); node != NULL; node = g_list_next (node))
-		{
-			*var = (gchar *)node->data;
-			++var;
-		}
-		*var = NULL;
-	}
-
-	return value;
-}
-
-/* Callback for saving session
+/* Callback for loading session
  *---------------------------------------------------------------------------*/
 
 static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *session, RunProgramPlugin *self)
+run_plugin_load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase, AnjutaSession *session)
 {
-	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
-		return;
-
-	anjuta_session_set_limited_string_list (session, "Execution", "Program arguments", &self->recent_args);
-	anjuta_session_set_limited_relative_file_list (session, "Execution", "Program uri", &self->recent_target);
-	anjuta_session_set_int (session, "Execution", "Run in terminal", self->run_in_terminal + 1);
-	anjuta_session_set_limited_relative_file_list (session,"Execution", "Working directories", &self->recent_dirs);
-	anjuta_session_set_strv (session, "Execution", "Environment variables", self->environment_vars);
-}
-
-static void on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase, AnjutaSession *session, RunProgramPlugin *self)
-{
-    gint run_in_terminal;
+	RunProgramPlugin *self = ANJUTA_PLUGIN_RUN_PROGRAM (plugin);
 
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
- 	if (self->recent_args != NULL)
- 	{
- 		g_list_foreach (self->recent_args, (GFunc)g_free, NULL);
- 		g_list_free (self->recent_args);
- 	}
- 	self->recent_args = anjuta_session_get_string_list (session, "Execution", "Program arguments");
+	g_clear_object (&self->session_settings);
+	self->session_settings = anjuta_session_create_settings (session, "execution");
+
+
+	g_list_free_full (self->recent_args, g_free);
+	self->recent_args = anjuta_util_settings_get_string_list (self->session_settings, "program-arguments");
 
 	g_list_foreach (self->recent_target, (GFunc)g_object_unref, NULL);
 	g_list_free (self->recent_target);
- 	self->recent_target = anjuta_session_get_relative_file_list (session, "Execution", "Program uri");
+ 	self->recent_target = anjuta_session_get_relative_file_list (session, self->session_settings, "program-uri");
 
-	/* The flag is store as 1 == FALSE, 2 == TRUE */
-	run_in_terminal = anjuta_session_get_int (session, "Execution", "Run in terminal");
-	if (run_in_terminal == 0)
-		self->run_in_terminal = TRUE;	/* Default value */
-	else
-		self->run_in_terminal = run_in_terminal - 1;
+	self->run_in_terminal = g_settings_get_boolean (self->session_settings, "run-in-terminal");
 
-	g_list_foreach (self->recent_dirs, (GFunc)g_object_unref, NULL);
- 	g_list_free (self->recent_dirs);
-	self->recent_dirs = anjuta_session_get_relative_file_list (session, "Execution", "Working directories");
+	g_list_free_full (self->recent_dirs, (GDestroyNotify)g_object_unref);
+	self->recent_dirs = anjuta_session_get_relative_file_list (session, self->session_settings, "working-directories");
 	if (self->recent_dirs == NULL)
 	{
 		/* Use project directory by default */
@@ -212,7 +149,7 @@ static void on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase, Anjut
 	}
 
 	g_strfreev (self->environment_vars);
- 	self->environment_vars = anjuta_session_get_strv (session, "Execution", "Environment variables");
+ 	self->environment_vars = g_settings_get_strv (self->session_settings,"environment-variables");
 
 	run_plugin_update_shell_value (self);
 }
@@ -252,8 +189,20 @@ on_kill_program_activate (GtkAction* action, RunProgramPlugin* plugin)
 static void
 on_program_parameters_activate (GtkAction* action, RunProgramPlugin* plugin)
 {
+	AnjutaSession *session;
+
 	/* Run as a modal dialog */
 	run_parameters_dialog_run (plugin);
+
+	/* Save all session settings */
+	session = anjuta_shell_get_session (anjuta_plugin_get_shell (ANJUTA_PLUGIN (plugin)));
+
+	g_settings_set_limited_string_list (plugin->session_settings, "program-arguments", plugin->recent_args);
+	anjuta_session_set_limited_relative_file_list (session, plugin->session_settings, "program-uri", &plugin->recent_target);
+	g_settings_set_boolean (plugin->session_settings, "run-in-terminal", plugin->run_in_terminal);
+	anjuta_session_set_limited_relative_file_list (session, plugin->session_settings, "working-directories", &plugin->recent_dirs);
+	g_settings_set_strv (plugin->session_settings, "environment-variables",
+	                     (const gchar *const *)plugin->environment_vars);
 }
 
 /* Actions table
@@ -305,12 +254,6 @@ run_plugin_activate (AnjutaPlugin *plugin)
 
 	DEBUG_PRINT ("%s", "Run Program Plugin: Activating plugin…");
 
-	/* Connect to session signal */
-	g_signal_connect (plugin->shell, "save-session",
-					  G_CALLBACK (on_session_save), self);
-    g_signal_connect (plugin->shell, "load-session",
-					  G_CALLBACK (on_session_load), self);
-
 	/* Add actions */
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
 	self->action_group = anjuta_ui_add_action_group_entries (ui,
@@ -337,10 +280,6 @@ run_plugin_deactivate (AnjutaPlugin *plugin)
 	anjuta_ui_remove_action_group (ui, self->action_group);
 
 	anjuta_ui_unmerge (ui, self->uiid);
-
-	g_signal_handlers_disconnect_by_func (plugin->shell, G_CALLBACK (on_session_save), self);
-    g_signal_handlers_disconnect_by_func (plugin->shell, G_CALLBACK (on_session_load), self);
-
 
 	return TRUE;
 }
@@ -408,6 +347,8 @@ run_plugin_class_init (GObjectClass *klass)
 
 	plugin_class->activate = run_plugin_activate;
 	plugin_class->deactivate = run_plugin_deactivate;
+	plugin_class->load_session = run_plugin_load_session;
+
 	klass->dispose = run_plugin_dispose;
 	klass->finalize = run_plugin_finalize;
 }
