@@ -1574,6 +1574,15 @@ on_activated_plugin_objects_foreach (gpointer key, gpointer data, gpointer user_
 						data);
 }
 
+/**
+ * anjuta_plugin_manager_get_active_plugins:
+ * @plugin_manager: A #AnjutaPluginManager object
+ *
+ * Get the active plugins.
+ *
+ * Returns: (element-type Anjuta.PluginHandle): (transfer container):
+ * A list of #AnjutaPluginHandles.
+ */
 GList*
 anjuta_plugin_manager_get_active_plugins (AnjutaPluginManager *plugin_manager)
 {
@@ -1586,6 +1595,15 @@ anjuta_plugin_manager_get_active_plugins (AnjutaPluginManager *plugin_manager)
 	return g_list_reverse (active_plugins);
 }
 
+/**
+ * anjuta_plugin_manager_get_active_plugin_objects:
+ * @plugin_manager: A #AnjutaPluginManager object
+ *
+ * Get the active plugin objects.
+ *
+ * Returns: (element-type Anjuta.Plugin): (transfer container):
+ * A list of #AnjutaPlugins.
+ */
 GList* 
 anjuta_plugin_manager_get_active_plugin_objects (AnjutaPluginManager *plugin_manager)
 {

@@ -33,6 +33,7 @@
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/anjuta-status.h>
 #include <libanjuta/anjuta-project.h>
+#include <libanjuta/anjuta-session.h>
 
 #include "project-util.h"
 #include "dialogs.h"
@@ -136,8 +137,7 @@ project_manager_save_session (ProjectManagerPlugin *plugin)
 	g_return_if_fail (session_dir != NULL);
 
 	plugin->session_by_me = TRUE;
-	anjuta_shell_session_save (ANJUTA_PLUGIN (plugin)->shell,
-							   session_dir, NULL);
+	anjuta_shell_session_save (ANJUTA_PLUGIN (plugin)->shell, NULL);
 	plugin->session_by_me = FALSE;
 	g_free (session_dir);
 }
@@ -1465,16 +1465,18 @@ on_profile_scoped (AnjutaProfile *profile, ProjectManagerPlugin *plugin)
 	session_dir = get_session_dir (plugin);
 	g_return_if_fail (session_dir != NULL);
 
+	session = anjuta_session_new (session_dir);
+	g_free (session_dir);
+
 	/*
 	 * If there is a session load already in progress (that is this
 	 * project is being opened in session restoration), our session
 	 * load would be ignored. Good thing.
 	 */
 	plugin->session_by_me = TRUE;
-	anjuta_shell_session_load (ANJUTA_PLUGIN (plugin)->shell,
-							   session_dir, NULL);
+	anjuta_shell_session_load (ANJUTA_PLUGIN (plugin)->shell, session, NULL);
 	plugin->session_by_me = FALSE;
-	g_free (session_dir);
+	g_object_unref (session);
 }
 
 static void

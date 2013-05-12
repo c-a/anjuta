@@ -368,7 +368,7 @@ static void
 on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
                                  AnjutaSession *session, DebugManagerPlugin *plugin)
 {
-	if (phase == ANJUTA_SESSION_PHASE_FIRST)
+	if (phase == ANJUTA_SESSION_PHASE_START)
 		enable_log_view (plugin, FALSE);
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;

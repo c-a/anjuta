@@ -170,6 +170,15 @@ GList *		anjuta_util_convert_gfile_list_to_relative_path_list (GList *list,
  */
 GPtrArray * anjuta_util_convert_string_list_to_array(GList *list);
 
+/***********************************************/
+/*  GSettings helper functions.                */
+/***********************************************/
+void		anjuta_util_settings_set_string_list (GSettings *settings,
+		                                          const gchar *key,
+		                                          GList *list);
+GList *		anjuta_util_settings_get_string_list (GSettings *settings,
+		                                          const gchar *key);
+
 /* list all files in a given directory */
 void		anjuta_util_list_all_dir_children	    (GList **children, GFile *dir);
 

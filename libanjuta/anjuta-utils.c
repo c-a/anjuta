@@ -2648,4 +2648,32 @@ anjuta_util_convert_string_list_to_array (GList *list)
 	return res;
 }
 
+void
+anjuta_util_settings_set_string_list (GSettings *settings, const gchar *key, GList *list)
+{
+	GVariantBuilder builder;
+	int i;
+
+	g_variant_builder_init (&builder, G_VARIANT_TYPE("as"));
+	for (i = 0; list != NULL; list = list->next, i++)
+		g_variant_builder_add (&builder, "s", list->data);
+
+	g_settings_set_value (settings, key, g_variant_builder_end (&builder));
+}
+
+GList*
+anjuta_util_settings_get_string_list (GSettings *settings, const gchar *key)
+{
+	gchar **strv, **iter;
+	GList *list = NULL;
+
+	strv = g_settings_get_strv (settings, key);
+	for (iter = strv; *iter != NULL; iter++)
+		list = g_list_prepend (list, *iter);
+
+	g_free (strv);
+
+	return g_list_reverse (list);
+}
+
 

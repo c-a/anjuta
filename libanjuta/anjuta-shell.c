@@ -902,95 +902,50 @@ void anjuta_shell_saving_pop	    (AnjutaShell* shell)
 	ANJUTA_SHELL_GET_IFACE (shell)->saving_pop (shell);
 }
 
+/**
+ * anjuta_shell_session_load:
+ * @shell: A #AnjutaShell interface
+ * @session: A #AnjutaSession object
+ *
+ * Load the session represented by @session.
+ */
 void
-anjuta_shell_session_save (AnjutaShell *shell, const gchar *session_directory,
+anjuta_shell_session_load (AnjutaShell *shell, AnjutaSession *session,
 						   GError **error)
 {
-	AnjutaSession *session;
-
 	g_return_if_fail (ANJUTA_IS_SHELL (shell));
-	g_return_if_fail (session_directory != NULL);
 
-	session = anjuta_session_new (session_directory);
-	anjuta_session_clear (session);
-	g_signal_emit_by_name (G_OBJECT (shell), "save_session",
-						   ANJUTA_SESSION_PHASE_FIRST, session);
-	g_signal_emit_by_name (G_OBJECT (shell), "save_session",
-						   ANJUTA_SESSION_PHASE_NORMAL, session);
-	g_signal_emit_by_name (G_OBJECT (shell), "save_session",
-						   ANJUTA_SESSION_PHASE_LAST, session);
-	anjuta_session_sync (session);
-	g_object_unref (session);
+	ANJUTA_SHELL_GET_IFACE (shell)->session_load (shell, session);
 }
 
+/**
+ * anjuta_shell_session_save:
+ * @shell: A #AnjutaShell interface
+ * 
+ * Save the currently loaded session.
+ */
 void
-anjuta_shell_session_load (AnjutaShell *shell, const gchar *session_directory,
-						   GError **error)
+anjuta_shell_session_save (AnjutaShell *shell, GError **error)
 {
-	AnjutaSession *session;
-	AnjutaSession *child;
- 
 	g_return_if_fail (ANJUTA_IS_SHELL (shell));
-	g_return_if_fail (session_directory != NULL);
- 
-	/* It is possible that loading a session triggers the load on another
-	 * session. It happens when restoring an user session includes a project.
-	 * The project session is loaded while the user session is still loading. */
-	session = anjuta_session_new (session_directory);
 
-	child = g_object_get_data (G_OBJECT (shell), "__session_loading");
-	g_object_set_data (G_OBJECT (shell), "__session_loading", session);
-	if (child != NULL)
-	{
-		/* There is already a session loading.
-		 * Replace it with our own session. The previous session will be
-		 * aborted and our session will be loaded afterward. */
-		g_object_unref (G_OBJECT (child));
+	ANJUTA_SHELL_GET_IFACE (shell)->session_save (shell);
+}
 
-		return;
-	}
+/**
+ * anjuta_shell_get_session:
+ * @shell: A #AnjutaShell interface
+ * 
+ * Get the currently loaded session.
+ * 
+ * Returns: (transfer none); The currently loaded #AnjutaSession.
+ */
+AnjutaSession *
+anjuta_shell_get_session (AnjutaShell *shell)
+{
+	g_return_val_if_fail (ANJUTA_IS_SHELL (shell), NULL);
 
-	/* This is the top session. This code emits all signals and check after
-	 * each phase that the session is still the same. If it is not the case
-	 * the session is aborted and the new session is loaded. */
-	for (;;)
-	{
-		if (child != NULL)
-		{
-			/* Abort previous session */
-			g_signal_emit_by_name (G_OBJECT (shell), "load_session",
-								   ANJUTA_SESSION_PHASE_END, session);
-			g_object_unref (session);
-			/* Reread session in case PHASE_END has triggered another session */
-			session = g_object_get_data (G_OBJECT (shell), "__session_loading");
-		}
-		g_object_ref (session);
-
-		g_signal_emit_by_name (G_OBJECT (shell), "load_session",
-							   ANJUTA_SESSION_PHASE_START, session);
-		child = g_object_get_data (G_OBJECT (shell), "__session_loading");
-		if (child != session) continue;
-		g_signal_emit_by_name (G_OBJECT (shell), "load_session",
-							   ANJUTA_SESSION_PHASE_FIRST, session);
-		child = g_object_get_data (G_OBJECT (shell), "__session_loading");
-		if (child != session) continue;
-		g_signal_emit_by_name (G_OBJECT (shell), "load_session",
-							   ANJUTA_SESSION_PHASE_NORMAL, session);
-		child = g_object_get_data (G_OBJECT (shell), "__session_loading");
-		if (child != session) continue;
-		g_signal_emit_by_name (G_OBJECT (shell), "load_session",
- 							   ANJUTA_SESSION_PHASE_LAST, session);
-		child = g_object_get_data (G_OBJECT (shell), "__session_loading");
-		if (child != session) continue;
-		g_signal_emit_by_name (G_OBJECT (shell), "load_session",
-							   ANJUTA_SESSION_PHASE_END, session);
-		child = g_object_get_data (G_OBJECT (shell), "__session_loading");
-		g_object_unref (session);
-		if (child == session) break;
-		session = child;
-		child = NULL;
-	}
-	g_object_set_data (G_OBJECT (shell), "__session_loading", NULL);
+	return ANJUTA_SHELL_GET_IFACE (shell)->get_session (shell);
 }
 
 void

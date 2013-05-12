@@ -34,15 +34,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "anjuta-session.h"
+#define G_SETTINGS_ENABLE_BACKEND
+#include <gio/gsettingsbackend.h>
+
+#include "resources.h"
 #include "anjuta-utils.h"
 
+#include "anjuta-session.h"
 
-G_DEFINE_TYPE (AnjutaSession, anjuta_session, ANJUTA_TYPE_SESSION);
+G_DEFINE_TYPE (AnjutaSession, anjuta_session, G_TYPE_OBJECT);
 
 struct _AnjutaSessionPriv {
 	gchar *dir_path;
-	GKeyFile *key_file;
+
+	GSettingsSchemaSource *schema_source;
+	GSettingsBackend *key_file_backend;
 };
 
 static gpointer *parent_class = NULL;
@@ -58,11 +64,9 @@ anjuta_session_constructed (GObject *object)
 	AnjutaSession *session = ANJUTA_SESSION (object);
 	gchar *filename;
 
-	session->priv->key_file = g_key_file_new ();
-
 	filename = anjuta_session_get_session_filename (session);
-	g_key_file_load_from_file (session->priv->key_file, filename,
-	                           G_KEY_FILE_NONE, NULL);
+	session->priv->key_file_backend = g_keyfile_settings_backend_new (filename,
+	                                                                  "/", NULL);
 
 	g_free (filename);
 }
@@ -108,7 +112,9 @@ anjuta_session_finalize (GObject *object)
 	cobj = ANJUTA_SESSION (object);
 
 	g_free (cobj->priv->dir_path);
-	g_key_file_free (cobj->priv->key_file);
+
+	g_settings_schema_source_unref (cobj->priv->schema_source);
+	g_clear_object (&cobj->priv->key_file_backend);
 
 	G_OBJECT_CLASS(parent_class)->finalize(object);
 }
@@ -128,9 +134,11 @@ anjuta_session_class_init (AnjutaSessionClass *klass)
 	properties[PROP_SESSION_DIRECTORY] =
 		g_param_spec_string ("session-directory", "Session directory",
 		                     "Session directory", NULL,
-		                     G_PARAM_READABLE |  G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
+		                     G_PARAM_READABLE | G_PARAM_WRITABLE |
+		                     G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
 	g_object_class_install_properties (object_class, N_PROPERTIES, properties);
+
 	g_type_class_add_private (klass, sizeof (AnjutaSessionPriv));
 }
 
@@ -143,6 +151,16 @@ anjuta_session_init (AnjutaSession *obj)
 	                                         AnjutaSessionPriv);
 
 	obj->priv->dir_path = NULL;
+
+	data_dir = anjuta_res_get_data_dir ();
+	schema_dir = g_build_filename (data_dir, "session", NULL);
+
+	obj->priv->schema_source =
+		g_settings_schema_source_new_from_directory (schema_dir, NULL, TRUE, NULL);
+	g_assert (obj->priv->schema_source != NULL);
+
+	g_free (data_dir);
+	g_free (schema_dir);
 }
 
 /**
@@ -206,16 +224,9 @@ anjuta_session_get_session_filename (AnjutaSession *session)
 void
 anjuta_session_sync (AnjutaSession *session)
 {
-	gchar *filename, *data;
-
 	g_return_if_fail (ANJUTA_IS_SESSION (session));
 
-	filename = anjuta_session_get_session_filename (session);
-	data = g_key_file_to_data (session->priv->key_file, NULL, NULL);
-	g_file_set_contents (filename, data, -1, NULL);
-
-	g_free (filename);
-	g_free (data);
+	/* FIXME: Need to sync key_file_backend explicitly. */
 }
 
 /**
@@ -229,13 +240,11 @@ anjuta_session_clear (AnjutaSession *session)
 {
 	gchar *cmd;
 	gchar *quoted;
+	gchar *filename;
 
 	g_return_if_fail (ANJUTA_IS_SESSION (session));
 
-	g_key_file_free (session->priv->key_file);
-	session->priv->key_file = g_key_file_new ();
-
-	anjuta_session_sync (session);
+	g_clear_object (&session->priv->key_file_backend);
 
 	quoted = g_shell_quote (session->priv->dir_path);
 	cmd = g_strconcat ("rm -fr ", quoted, NULL);
@@ -246,275 +255,37 @@ anjuta_session_clear (AnjutaSession *session)
 	system (cmd);
 	g_free (cmd);
 	g_free (quoted);
+
+	filename = anjuta_session_get_session_filename (session);
+	session->priv->key_file_backend = g_keyfile_settings_backend_new (filename,
+	                                                                  "/", NULL);
+	g_free (filename);
 }
 
 /**
- * anjuta_session_clear_section:
- * @session: an #AnjutaSession object.
- * @section: Section to clear.
- *
- * Clears the given section in session object.
- */
-void
-anjuta_session_clear_section (AnjutaSession *session,
-							  const gchar *section)
-{
-	g_return_if_fail (ANJUTA_IS_SESSION (session));
-	g_return_if_fail (section != NULL);
-
-	g_key_file_remove_group (session->priv->key_file, section, NULL);
-}
-
-/**
- * anjuta_session_set_int:
+ * anjuta_session_create_settings:
  * @session: an #AnjutaSession object
- * @section: Section.
- * @key: Key name.
- * @value: Key value
- *
- * Set an integer @value to @key in given @section.
+ * @schema_id: the id of the schema
+ * 
+ * Returns: (transfer full): a new #GSettings object
  */
-void
-anjuta_session_set_int (AnjutaSession *session, const gchar *section,
-						const gchar *key, gint value)
+GSettings*
+anjuta_session_create_settings (AnjutaSession* session, const gchar *schema_id)
 {
-	g_return_if_fail (ANJUTA_IS_SESSION (session));
-	g_return_if_fail (section != NULL);
-	g_return_if_fail (key != NULL);
-
-	if (!value)
-	{
-		g_key_file_remove_key (session->priv->key_file, section, key, NULL);
-		return;
-	}
-
-	g_key_file_set_integer (session->priv->key_file, section, key, value);
-}
-
-/**
- * anjuta_session_set_float:
- * @session: an #AnjutaSession object
- * @section: Section.
- * @key: Key name.
- * @value: Key value
- *
- * Set a float @value to @key in given @section.
- */
-void
-anjuta_session_set_float (AnjutaSession *session, const gchar *section,
-						  const gchar *key, gfloat value)
-{
-	g_return_if_fail (ANJUTA_IS_SESSION (session));
-	g_return_if_fail (section != NULL);
-	g_return_if_fail (key != NULL);
-
-	if (!value)
-	{
-		g_key_file_remove_key (session->priv->key_file, section, key, NULL);
-		return;
-	}
-
-	g_key_file_set_double (session->priv->key_file, section, key, value);
-}
-
-/**
- * anjuta_session_set_string:
- * @session: an #AnjutaSession object
- * @section: Section.
- * @key: Key name.
- * @value: Key value
- *
- * Set a string @value to @key in given @section.
- */
-void
-anjuta_session_set_string (AnjutaSession *session, const gchar *section,
-						   const gchar *key, const gchar *value)
-{
-	g_return_if_fail (ANJUTA_IS_SESSION (session));
-	g_return_if_fail (section != NULL);
-	g_return_if_fail (key != NULL);
-
-	if (!value)
-	{
-		g_key_file_remove_key (session->priv->key_file, section, key, NULL);
-		return;
-	}
-
-	g_key_file_set_string (session->priv->key_file, section, key, value);
-}
-
-/**
- * anjuta_session_set_string_list:
- * @session: an #AnjutaSession object
- * @section: Section.
- * @key: Key name.
- * @value: Key value
- *
- * Set a list of strings @value to @key in given @section.
- */
-void
-anjuta_session_set_string_list (AnjutaSession *session,
-								const gchar *section,
-								const gchar *key, GList *value)
-{
-	gchar *value_str;
-	GString *str;
-	GList *node;
-	gboolean first_item = TRUE;
-
-	g_return_if_fail (ANJUTA_IS_SESSION (session));
-	g_return_if_fail (section != NULL);
-	g_return_if_fail (key != NULL);
-
-	if (!value)
-	{
-		g_key_file_remove_key (session->priv->key_file, section, key, NULL);
-		return;
-	}
-
-	str = g_string_new ("");
-	node = value;
-	while (node)
-	{
-		/* Keep empty string */
-		if (node->data != NULL)
-		{
-			if (first_item)
-				first_item = FALSE;
-			else
-				g_string_append (str, "%%%");
-			g_string_append (str, node->data);
-		}
-		node = g_list_next (node);
-	}
-
-	value_str = g_string_free (str, FALSE);
-	g_key_file_set_string (session->priv->key_file, section, key, value_str);
-
-	g_free (value_str);
-}
-
-/**
- * anjuta_session_get_int:
- * @session: an #AnjutaSession object
- * @section: Section.
- * @key: Key name.
- *
- * Get an integer @value of @key in given @section.
- *
- * Returns: Key value
- */
-gint
-anjuta_session_get_int (AnjutaSession *session, const gchar *section,
-						const gchar *key)
-{
-	gint value;
-
-	g_return_val_if_fail (ANJUTA_IS_SESSION (session), 0);
-	g_return_val_if_fail (section != NULL, 0);
-	g_return_val_if_fail (key != NULL, 0);
-
-	value = g_key_file_get_integer (session->priv->key_file, section, key, NULL);
-
-	return value;
-}
-
-/**
- * anjuta_session_get_float:
- * @session: an #AnjutaSession object
- * @section: Section.
- * @key: Key name.
- *
- * Get a float @value of @key in given @section.
- *
- * Returns: Key value
- */
-gfloat
-anjuta_session_get_float (AnjutaSession *session, const gchar *section,
-						  const gchar *key)
-{
-	gfloat value;
-
-	g_return_val_if_fail (ANJUTA_IS_SESSION (session), 0);
-	g_return_val_if_fail (section != NULL, 0);
-	g_return_val_if_fail (key != NULL, 0);
-
-	value = (float)g_key_file_get_double (session->priv->key_file, section, key, NULL);
-
-	return value;
-}
-
-/**
- * anjuta_session_get_string:
- * @session: an #AnjutaSession object
- * @section: Section.
- * @key: Key name.
- *
- * Get a string @value of @key in given @section.
- *
- * Returns: Key value
- */
-gchar*
-anjuta_session_get_string (AnjutaSession *session, const gchar *section,
-						   const gchar *key)
-{
-	gchar *value;
+	GSettingsSchema *schema;
+	GSettings *settings;
 
 	g_return_val_if_fail (ANJUTA_IS_SESSION (session), NULL);
-	g_return_val_if_fail (section != NULL, NULL);
-	g_return_val_if_fail (key != NULL, NULL);
+	g_return_val_if_fail (schema_id != NULL, NULL);
 
-	value = g_key_file_get_string (session->priv->key_file, section, key, NULL);
+	schema = g_settings_schema_source_lookup (session->priv->schema_source,
+	                                          schema_id, FALSE);
+	g_assert (schema != NULL);
 
-	return value;
+	settings = g_settings_new_full (schema, session->priv->key_file_backend, NULL);
+	g_settings_schema_unref (schema);
+	return settings;
 }
-
-/**
- * anjuta_session_get_string_list:
- * @session: an #AnjutaSession object
- * @section: Section.
- * @key: Key name.
- *
- * Get a list of strings @value of @key in given @section.
- *
- * Returns: Key value
- */
-GList*
-anjuta_session_get_string_list (AnjutaSession *session,
-								const gchar *section,
-								const gchar *key)
-{
-	gchar *val, **str, **ptr;
-	GList *value;
-
-	g_return_val_if_fail (ANJUTA_IS_SESSION (session), NULL);
-	g_return_val_if_fail (section != NULL, NULL);
-	g_return_val_if_fail (key != NULL, NULL);
-
-	val = g_key_file_get_string (session->priv->key_file, section, key, NULL);
-
-
-	value = NULL;
-	if (val)
-	{
-		str = g_strsplit (val, "%%%", -1);
-		if (str)
-		{
-			ptr = str;
-			while (*ptr)
-			{
-				/* Keep empty string */
-				value = g_list_prepend (value, g_strdup (*ptr));
-				ptr++;
-			}
-			g_strfreev (str);
-		}
-		g_free (val);
-	}
-
-	return g_list_reverse (value);
-}
-
 
 /**
  * anjuta_session_get_relative_uri_from_file:

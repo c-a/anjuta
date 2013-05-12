@@ -151,6 +151,8 @@ on_profile_scoped (AnjutaProfile *profile, AnjutaWindow *win)
 	session_dir = USER_SESSION_PATH_NEW;
 
 	session = anjuta_session_new (session_dir);
+	g_free (session_dir);
+
 	if (first_time)
 	{
 		if (g_settings_get_boolean (win->settings, ANJUTA_SESSION_SKIP_LAST))
@@ -173,11 +175,10 @@ on_profile_scoped (AnjutaProfile *profile, AnjutaWindow *win)
 		                                "Files", NULL);
 	}
 	anjuta_session_sync (session);
-	g_object_unref (session);
 
 	/* Restore session */
-	anjuta_shell_session_load (ANJUTA_SHELL (win), session_dir, NULL);
-	g_free (session_dir);
+	anjuta_shell_session_load (ANJUTA_SHELL (win), session, NULL);
+	g_object_unref (session);
 }
 
 static void
@@ -187,12 +188,8 @@ on_profile_descoped (AnjutaProfile *profile, AnjutaWindow *win)
 
 	DEBUG_PRINT ("%s", "User profile descoped; Saving user session");
 
-	/* If profile descoped from is "user", save user session */
-	session_dir = USER_SESSION_PATH_NEW;
-
 	/* Save current session */
-	anjuta_shell_session_save (ANJUTA_SHELL (win), session_dir, NULL);
-	g_free (session_dir);
+	anjuta_shell_session_save (ANJUTA_SHELL (win), NULL);
 }
 
 /* Create hint string.

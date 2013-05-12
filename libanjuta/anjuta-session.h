@@ -39,10 +39,8 @@ typedef struct _AnjutaSessionPriv AnjutaSessionPriv;
 typedef enum
 {
 	ANJUTA_SESSION_PHASE_START,
-	ANJUTA_SESSION_PHASE_FIRST,
 	ANJUTA_SESSION_PHASE_NORMAL,
-	ANJUTA_SESSION_PHASE_LAST,
-	ANJUTA_SESSION_PHASE_END,
+	ANJUTA_SESSION_PHASE_END
 } AnjutaSessionPhase;
 
 typedef struct {
@@ -63,28 +61,9 @@ const gchar* anjuta_session_get_session_directory (AnjutaSession *session);
 
 void anjuta_session_sync (AnjutaSession *session);
 void anjuta_session_clear (AnjutaSession *session);
-void anjuta_session_clear_section (AnjutaSession *session,
-								   const gchar *section);
 
-void anjuta_session_set_int (AnjutaSession *session, const gchar *section,
-							 const gchar *key, gint value);
-void anjuta_session_set_float (AnjutaSession *session, const gchar *section,
-							   const gchar *key, gfloat value);
-void anjuta_session_set_string (AnjutaSession *session, const gchar *section,
-								const gchar *key, const gchar *value);
-void anjuta_session_set_string_list (AnjutaSession *session,
-									 const gchar *section,
-									 const gchar *key, GList *value);
-
-gint anjuta_session_get_int (AnjutaSession *session, const gchar *section,
-							 const gchar *key);
-gfloat anjuta_session_get_float (AnjutaSession *session, const gchar *section,
-								 const gchar *key);
-gchar* anjuta_session_get_string (AnjutaSession *session, const gchar *section,
-								  const gchar *key);
-GList* anjuta_session_get_string_list (AnjutaSession *session,
-									   const gchar *section,
-									   const gchar *key);
+GSettings* anjuta_session_create_settings (AnjutaSession* session,
+                                           const gchar *schema_id);
 
 gchar *anjuta_session_get_relative_uri_from_file (AnjutaSession *session,
                                                   GFile *file,

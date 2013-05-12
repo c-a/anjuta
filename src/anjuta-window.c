@@ -38,6 +38,7 @@
 #include <libanjuta/anjuta-ui.h>
 #include <libanjuta/anjuta-utils.h>
 #include <libanjuta/resources.h>
+#include <libanjuta/anjuta-plugin.h>
 #include <libanjuta/anjuta-plugin-manager.h>
 #include <libanjuta/anjuta-debug.h>
 
@@ -401,11 +402,33 @@ on_layout_locked_notify (GdlDockMaster *master, GParamSpec *pspec,
 }
 
 static void
+on_plugin_activated (AnjutaPluginManager *plugin_manager,
+                     AnjutaPluginDescription *plugin_desc,
+                     AnjutaPlugin *plugin, AnjutaWindow *win)
+{
+	if (win->session)
+		anjuta_plugin_load_session (plugin, ANJUTA_SESSION_PHASE_NORMAL,
+		                            win->session);
+}
+
+static void
 on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
 				 AnjutaSession *session, AnjutaWindow *win)
 {
+	AnjutaPluginManager *plugin_manager;
+	GList *plugins, *l;
 	gchar *geometry, *layout_file;
 	GdkWindowState state;
+
+	/* Call save_session on all the active plugins */
+	plugin_manager = anjuta_shell_get_plugin_manager (shell, NULL);
+	plugins = anjuta_plugin_manager_get_active_plugin_objects (plugin_manager);
+	for (l = plugins; l != NULL; l = l->next)
+	{
+		AnjutaPlugin *plugin = ANJUTA_PLUGIN (l->data);
+		anjuta_plugin_save_session (plugin, phase, win->session);
+	}
+	g_list_free (plugins);
 
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
@@ -441,6 +464,9 @@ static void
 on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 				 AnjutaSession *session, AnjutaWindow *win)
 {
+	AnjutaPluginManager *plugin_manager;
+	GList *plugins, *l;
+
 	if (phase == ANJUTA_SESSION_PHASE_START)
 	{
 		AnjutaApplication *app;
@@ -469,7 +495,7 @@ on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 	}
 
 	/* We load layout at last so that all plugins would have loaded by now */
-	if (phase == ANJUTA_SESSION_PHASE_LAST)
+	if (phase == ANJUTA_SESSION_PHASE_END)
 	{
 		gchar *geometry;
 		gchar *layout_file;
@@ -508,6 +534,16 @@ on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 		anjuta_window_layout_load (win, layout_file, NULL);
 		g_free (layout_file);
 	}
+
+	/* Call load_session on all the active plugins */
+	plugin_manager = anjuta_shell_get_plugin_manager (shell, NULL);
+	plugins = anjuta_plugin_manager_get_active_plugin_objects (plugin_manager);
+	for (l = plugins; l != NULL; l = l->next)
+	{
+		AnjutaPlugin *plugin = ANJUTA_PLUGIN (l->data);
+		anjuta_plugin_load_session (plugin, phase, session);
+	}
+	g_list_free (plugins);
 }
 
 static void
@@ -665,6 +701,9 @@ anjuta_window_instance_init (AnjutaWindow *win)
 													 plugins_dirs);
 	win->profile_manager = anjuta_profile_manager_new (win->plugin_manager);
 	g_list_free (plugins_dirs);
+
+	g_signal_connect_object (win->plugin_manager, "plugin-activated",
+	                         G_CALLBACK (on_plugin_activated), win, 0);
 
 	/* Preferences */
 	win->preferences = anjuta_preferences_new (win->plugin_manager, PREF_SCHEMA);
@@ -1117,6 +1156,101 @@ anjuta_window_saving_pop (AnjutaShell* shell)
 	win->save_count--;
 }
 
+static void
+anjuta_window_session_save (AnjutaShell *shell)
+{
+	AnjutaWindow* win = ANJUTA_WINDOW (shell);
+
+	g_signal_emit_by_name (G_OBJECT (shell), "save_session",
+						   ANJUTA_SESSION_PHASE_START, win->session);
+	g_signal_emit_by_name (G_OBJECT (shell), "save_session",
+						   ANJUTA_SESSION_PHASE_NORMAL, win->session);
+	g_signal_emit_by_name (G_OBJECT (shell), "save_session",
+						   ANJUTA_SESSION_PHASE_END, win->session);
+
+	anjuta_session_sync (win->session);
+}
+
+static void
+anjuta_window_session_load (AnjutaShell *shell, AnjutaSession *session)
+{
+	AnjutaWindow* win = ANJUTA_WINDOW (shell);
+	AnjutaSession *child;
+
+	if (win->session)
+	{
+		anjuta_session_sync (win->session);
+		g_clear_object (&win->session);
+	}
+
+	/* It is possible that loading a session triggers the load on another
+	 * session. It happens when restoring an user session includes a project.
+	 * The project session is loaded while the user session is still loading. */
+
+	child = win->loading_session;
+	win->loading_session = g_object_ref (session);
+	if (child != NULL)
+	{
+		/* There is already a session loading.
+		 * Replace it with our own session. The previous session will be
+		 * aborted and our session will be loaded afterward. */
+		g_object_unref (child);
+		return;
+	}
+
+	/* This is the top session. This code emits all signals and check after
+	 * each phase that the session is still the same. If it is not the case
+	 * the session is aborted and the new session is loaded. */
+	for (;;)
+	{
+		if (child != NULL)
+		{
+			/* Abort previous session */
+			g_signal_emit_by_name (G_OBJECT (shell), "load_session",
+								   ANJUTA_SESSION_PHASE_END, session);
+			g_object_unref (session);
+			/* Reread session in case PHASE_END has triggered another session */
+			session = win->loading_session;
+		}
+
+		/* Take a reference here so that session is kept alive if 
+		 * win->loading_session is replaced. */
+		g_object_ref (session);
+
+		g_signal_emit_by_name (G_OBJECT (shell), "load_session",
+							   ANJUTA_SESSION_PHASE_START, session);
+		child = win->loading_session;
+		if (child != session) continue;
+
+		g_signal_emit_by_name (G_OBJECT (shell), "load_session",
+							   ANJUTA_SESSION_PHASE_NORMAL, session);
+		child = win->loading_session;
+		if (child != session) continue;
+
+		g_signal_emit_by_name (G_OBJECT (shell), "load_session",
+							   ANJUTA_SESSION_PHASE_END, session);
+		child = win->loading_session;
+		if (child == session) break;
+
+		session = child;
+		child = NULL;
+	}
+
+	g_clear_object (&win->loading_session);
+
+	/* The session is completely loaded, store a reference to it.
+	 * We take the reference the we took in the loop above. */
+	win->session = session;
+}
+
+static AnjutaSession*
+anjuta_window_get_session (AnjutaShell *shell)
+{
+	AnjutaWindow* win = ANJUTA_WINDOW (shell);
+
+	return win->session;
+}
+
 static gboolean
 remove_from_widgets_hash (gpointer name, gpointer hash_widget, gpointer widget)
 {
@@ -1445,6 +1579,9 @@ anjuta_shell_iface_init (AnjutaShellIface *iface)
 	iface->get_preferences = anjuta_window_get_preferences;
 	iface->get_plugin_manager = anjuta_window_get_plugin_manager;
 	iface->get_profile_manager = anjuta_window_get_profile_manager;
+	iface->session_load = anjuta_window_session_load;
+	iface->session_save = anjuta_window_session_save;
+	iface->get_session = anjuta_window_get_session;
 	iface->saving_push = anjuta_window_saving_push;
 	iface->saving_pop = anjuta_window_saving_pop;
 }

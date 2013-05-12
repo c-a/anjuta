@@ -172,6 +172,7 @@
 
 #include <config.h>
 #include <string.h>
+#include <libanjuta/anjuta-enum-types.h>
 #include <libanjuta/anjuta-marshal.h>
 #include <libanjuta/interfaces/ianjuta-preferences.h>
 #include "anjuta-plugin.h"
@@ -206,6 +207,8 @@ enum
 {
 	ACTIVATED_SIGNAL,
 	DEACTIVATED_SIGNAL,
+	LOAD_SESSION_SIGNAL,
+	SAVE_SESSION_SIGNAL,
 	LAST_SIGNAL
 };
 
@@ -330,7 +333,7 @@ anjuta_plugin_class_init (AnjutaPluginClass *class)
 					anjuta_cclosure_marshal_VOID__VOID,
 					G_TYPE_NONE, 0);
 	
-	plugin_signals[ACTIVATED_SIGNAL] =
+	plugin_signals[DEACTIVATED_SIGNAL] =
 		g_signal_new ("deactivated",
 					G_TYPE_FROM_CLASS (object_class),
 					G_SIGNAL_RUN_FIRST,
@@ -339,6 +342,24 @@ anjuta_plugin_class_init (AnjutaPluginClass *class)
 					NULL, NULL,
 					anjuta_cclosure_marshal_VOID__VOID,
 					G_TYPE_NONE, 0);
+
+	plugin_signals[LOAD_SESSION_SIGNAL] =
+		g_signal_new ("load-session",
+		              G_TYPE_FROM_CLASS (object_class),
+		              G_SIGNAL_RUN_FIRST,
+		              G_STRUCT_OFFSET (AnjutaPluginClass, load_session),
+		              NULL, NULL, NULL,
+		              G_TYPE_NONE,
+		              2, ANJUTA_TYPE_SESSION_PHASE, ANJUTA_TYPE_SESSION);
+
+	plugin_signals[SAVE_SESSION_SIGNAL] =
+		g_signal_new ("save-session",
+		              G_TYPE_FROM_CLASS (object_class),
+		              G_SIGNAL_RUN_FIRST,
+		              G_STRUCT_OFFSET (AnjutaPluginClass, load_session),
+		              NULL, NULL, NULL,
+		              G_TYPE_NONE,
+		              2, ANJUTA_TYPE_SESSION_PHASE, ANJUTA_TYPE_SESSION);
 }
 
 static void
@@ -580,6 +601,42 @@ anjuta_plugin_is_active (AnjutaPlugin *plugin)
 }
 
 /**
+ * anjuta_plugin_load_session:
+ * @plugin: a #AnjutaPlugin object.
+ * @session: a #AnjutaSession object.
+ *
+ * Asks the plugin to load its session settings from @session.
+ */
+void
+anjuta_plugin_load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                            AnjutaSession *session)
+{
+	g_return_if_fail (ANJUTA_IS_PLUGIN (plugin));
+	g_return_if_fail (ANJUTA_IS_SESSION (session));
+	g_return_if_fail (plugin->priv->activated == TRUE);
+
+	g_signal_emit (plugin, plugin_signals[LOAD_SESSION_SIGNAL], 0, phase, session);
+}
+
+/**
+ * anjuta_plugin_save_session:
+ * @plugin: a #AnjutaPlugin object.
+ * @session: a #AnjutaSession object.
+ *
+ * Asks the plugin to save its session settings to @session.
+ */
+void
+anjuta_plugin_save_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                            AnjutaSession *session)
+{
+	g_return_if_fail (ANJUTA_IS_PLUGIN (plugin));
+	g_return_if_fail (ANJUTA_IS_SESSION (session));
+	g_return_if_fail (plugin->priv->activated == TRUE);
+
+	g_signal_emit (plugin, plugin_signals[SAVE_SESSION_SIGNAL], 0, phase, session);
+}
+
+/**
  * anjuta_plugin_get_shell:
  * @plugin: a #AnjutaPlugin
  * 
@@ -590,4 +647,3 @@ anjuta_plugin_get_shell (AnjutaPlugin* plugin)
 {
 	return plugin->shell;
 }
-

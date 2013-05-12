@@ -1153,7 +1153,7 @@ on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 	GList *files, *node;
 
 	/* We want to load the files first before other session loads */
-	if (phase != ANJUTA_SESSION_PHASE_FIRST)
+	if (phase != ANJUTA_SESSION_PHASE_START)
 		return;
 
 	files = anjuta_session_get_string_list (session, "File Loader", "Files");

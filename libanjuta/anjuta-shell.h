@@ -134,6 +134,12 @@ struct _AnjutaShellIface {
 	void (*remove_value)      (AnjutaShell  *shell,
 							   const char   *name,
 							   GError       **error);
+
+	void (*session_load)      (AnjutaShell* shell,
+	                           AnjutaSession* session);
+	void (*session_save)      (AnjutaShell* shell);
+	AnjutaSession* (*get_session) (AnjutaShell* shell);
+
 	void (*saving_push)       (AnjutaShell* shell);
 	void (*saving_pop)        (AnjutaShell* shell);
 	GObject* (*get_object)    (AnjutaShell  *shell,
@@ -242,11 +248,12 @@ GObject *anjuta_shell_get_object    (AnjutaShell *shell,
 									 const gchar *iface_name,
 									 GError **error);
 void anjuta_shell_session_save      (AnjutaShell *shell,
-									 const gchar *session_directory,
 									 GError **error);
 void anjuta_shell_session_load      (AnjutaShell *shell,
-									 const gchar *session_directory,
+									 AnjutaSession *session,
 									 GError **error);
+AnjutaSession * anjuta_shell_get_session (AnjutaShell *shell);
+
 void anjuta_shell_save_prompt       (AnjutaShell *shell,
 									 AnjutaSavePrompt *prompt,
 									 GError **error);

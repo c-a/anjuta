@@ -94,6 +94,13 @@ struct _AnjutaPluginClass {
 	void (*activated) (AnjutaPlugin *plugin);
 	void (*deactivated) (AnjutaPlugin *plugin);
 
+	void (*load_session) (AnjutaPlugin *plugin,
+	                      AnjutaSessionPhase phase,
+	                      AnjutaSession *session);
+	void (*save_session) (AnjutaPlugin *plugin,
+	                      AnjutaSessionPhase phase,
+	                      AnjutaSession *session);
+
 	/* Virtual functions */
 	gboolean (*activate) (AnjutaPlugin *plugin);
 	gboolean (*deactivate) (AnjutaPlugin *plugin);
@@ -106,6 +113,14 @@ gboolean anjuta_plugin_activate (AnjutaPlugin *plugin);
 gboolean anjuta_plugin_deactivate (AnjutaPlugin *plugin);
 
 gboolean anjuta_plugin_is_active (AnjutaPlugin *plugin);
+
+void anjuta_plugin_load_session (AnjutaPlugin *plugin,
+                                 AnjutaSessionPhase phase,
+                                 AnjutaSession *session);
+
+void anjuta_plugin_save_session (AnjutaPlugin *plugin,
+                                 AnjutaSessionPhase,
+                                 AnjutaSession *session);
 
 guint anjuta_plugin_add_watch (AnjutaPlugin *plugin, 
 							   const gchar *name,

@@ -28,6 +28,7 @@
 #include <libanjuta/anjuta-preferences.h>
 #include <libanjuta/anjuta-plugin-manager.h>
 #include <libanjuta/anjuta-profile-manager.h>
+#include <libanjuta/anjuta-session.h>
 
 G_BEGIN_DECLS
 
@@ -60,6 +61,8 @@ struct _AnjutaWindow
 	GSettings* settings;
 	AnjutaPluginManager *plugin_manager;
 	AnjutaProfileManager *profile_manager;
+	AnjutaSession* session;
+	AnjutaSession* loading_session;
 
 	gint save_count;
 };
