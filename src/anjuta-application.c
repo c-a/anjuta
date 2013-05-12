@@ -163,16 +163,18 @@ on_profile_scoped (AnjutaProfile *profile, AnjutaWindow *win)
 		else if (g_settings_get_boolean (win->settings, ANJUTA_SESSION_SKIP_LAST_FILES))
 		{
 			/* Clear files from session */
-			anjuta_session_set_string_list (session, "File Loader",
-			                                "Files", NULL);
+			GSettings *loader_settings = anjuta_session_create_settings (session, "file-loader");
+			g_settings_set_strv (loader_settings, "files", NULL);
+			g_object_unref (loader_settings);
 		}
 		first_time = FALSE;
 	}
 	else
 	{
 		/* Clear the files list since we don't want to load them later */
-		anjuta_session_set_string_list (session, "File Loader",
-		                                "Files", NULL);
+		GSettings *loader_settings = anjuta_session_create_settings (session, "file-loader");
+		g_settings_set_strv (loader_settings, "files", NULL);
+		g_object_unref (loader_settings);
 	}
 	anjuta_session_sync (session);
 

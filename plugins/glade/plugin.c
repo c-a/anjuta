@@ -362,24 +362,25 @@ register_stock_icons (AnjutaPlugin *plugin)
 }
 
 static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
-                 AnjutaSession *session, GladePlugin *plugin)
+save_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+              AnjutaSession *session)
 {
-	GList *files, *docwids, *node;
-	/*	GtkTreeModel *model;
-	 GtkTreeIter iter;
-	 */
+	GList *docwids;
 	IAnjutaDocumentManager *docman;
 
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
-	docman = anjuta_shell_get_interface (ANJUTA_PLUGIN(plugin)->shell,
+	docman = anjuta_shell_get_interface (plugin->shell,
 	                                     IAnjutaDocumentManager, NULL);
 	docwids = ianjuta_document_manager_get_doc_widgets (docman, NULL);
 	if (docwids)
 	{
-		files = anjuta_session_get_string_list (session, "File Loader", "Files");
+		GSettings *loader_settings;
+		GList *files, *node;
+
+		loader_settings = anjuta_session_create_settings (session, "file-loader");
+		files = anjuta_util_settings_get_string_list (loader_settings, "files");
 		if (files)
 			files = g_list_reverse (files);
 		for (node = docwids; node != NULL; node = g_list_next (node))
@@ -400,10 +401,12 @@ on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
 		if (files)
 		{
 			files = g_list_reverse (files);
-			anjuta_session_set_string_list (session, "File Loader", "Files", files);
-			g_list_foreach (files, (GFunc)g_free, NULL);
-			g_list_free (files);
+
+			anjuta_util_settings_set_string_list (loader_settings, "files", files);
+			g_list_free_full (files, g_object_unref);
 		}
+
+		g_object_unref (loader_settings);
 	}
 }
 
@@ -831,9 +834,6 @@ activate_plugin (AnjutaPlugin *plugin)
 	                         "AnjutaGladePalette", _("Palette"),
 	                         "glade-plugin-palette",
 	                         ANJUTA_SHELL_PLACEMENT_LEFT, NULL);
-	/* Connect to save session */
-	g_signal_connect (G_OBJECT (plugin->shell), "save_session",
-	                  G_CALLBACK (on_session_save), plugin);
 
 	/* Connecto to handle document close */
 	IAnjutaDocumentManager* docman = anjuta_shell_get_interface(ANJUTA_PLUGIN(plugin)->shell,
@@ -872,9 +872,6 @@ deactivate_plugin (AnjutaPlugin *plugin)
 	g_signal_handlers_disconnect_by_func (plugin->shell,
 	                                      G_CALLBACK (on_shell_destroy),
 	                                      plugin);
-
-	g_signal_handlers_disconnect_by_func (plugin->shell,
-	                                      G_CALLBACK (on_session_save), plugin);
 
 	g_signal_handlers_disconnect_by_func (priv->app,
 	                                      G_CALLBACK(on_api_help), plugin);
@@ -942,6 +939,7 @@ glade_plugin_class_init (GObjectClass *klass)
 
 	plugin_class->activate = activate_plugin;
 	plugin_class->deactivate = deactivate_plugin;
+	plugin_class->save_session = save_session;
 	klass->dispose = glade_plugin_dispose;
 	klass->finalize = glade_plugin_finalize;
 }

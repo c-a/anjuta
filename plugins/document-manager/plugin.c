@@ -1405,12 +1405,15 @@ static void
 on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
 				 AnjutaSession *session, DocmanPlugin *plugin)
 {
+	GSettings *loader_settings;
 	GList *docwids, *node, *files;
 
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
-	files = anjuta_session_get_string_list (session, "File Loader", "Files"); /* probably NULL */
+	loader_settings = anjuta_session_create_settings (session, "file-loader");
+
+	files = anjuta_util_settings_get_string_list (loader_settings, "files"); /* probably NULL */
 	/* buffers list is ordered last-opened to first-opened */
 	docwids = anjuta_docman_get_all_doc_widgets (ANJUTA_DOCMAN (plugin->docman));
 	if (docwids)
@@ -1440,10 +1443,11 @@ on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
 	}
 	if (files)
 	{
-		anjuta_session_set_string_list (session, "File Loader", "Files", files);
-		g_list_foreach (files, (GFunc)g_free, NULL);
-		g_list_free (files);
+		anjuta_util_settings_set_string_list (loader_settings, "files", files);
+		g_list_free_full (files, g_free);
 	}
+
+	g_object_unref (loader_settings);
 
 	anjuta_bookmarks_session_save (ANJUTA_BOOKMARKS (plugin->bookmarks),
 								   session);

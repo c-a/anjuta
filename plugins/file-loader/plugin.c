@@ -1146,43 +1146,39 @@ dnd_dropped (GFile* file, gpointer plugin)
 }
 
 static void
-on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
-				 AnjutaSession *session,
-				 AnjutaFileLoaderPlugin *plugin)
+load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+              AnjutaSession *session)
 {
-	GList *files, *node;
+	GSettings *session_settings;
+	gchar **files, **node;
 
 	/* We want to load the files first before other session loads */
 	if (phase != ANJUTA_SESSION_PHASE_START)
 		return;
 
-	files = anjuta_session_get_string_list (session, "File Loader", "Files");
-	if (!files)
-		return;
+	session_settings = anjuta_session_create_settings (session, "file-loader");
+	files = g_settings_get_strv (session_settings, "files");
 
 	/* Open all files except project files */
-	for (node = g_list_first (files); node != NULL; node = g_list_next (node))
+	for (node = files; *node != NULL; node++)
 	{
-		gchar *uri = node->data;
-
-		if (uri)
+		gchar *uri = *node;
+		const gchar *fragment = NULL;
+		GFile* file = anjuta_session_get_file_from_relative_uri (session, uri, &fragment);
+		GObject *loader = ianjuta_file_loader_load (IANJUTA_FILE_LOADER (plugin),
+		                                            file, FALSE, NULL);
+		if (fragment != NULL)
 		{
-			const gchar *fragment = NULL;
-			GFile* file = anjuta_session_get_file_from_relative_uri (session, uri, &fragment);
-			GObject *loader = ianjuta_file_loader_load (IANJUTA_FILE_LOADER (plugin),
-											  file, FALSE, NULL);
-			if (fragment != NULL)
+			if (IANJUTA_IS_DOCUMENT_MANAGER (loader))
 			{
-				if (IANJUTA_IS_DOCUMENT_MANAGER (loader))
-				{
-					ianjuta_document_manager_goto_file_line (IANJUTA_DOCUMENT_MANAGER (loader), file, atoi(fragment), NULL);
-				}
+				ianjuta_document_manager_goto_file_line (IANJUTA_DOCUMENT_MANAGER (loader), file, atoi(fragment), NULL);
 			}
-			g_object_unref (file);
 		}
-		g_free (uri);
+		g_object_unref (file);
 	}
-	g_list_free (files);
+
+	g_strfreev (files);
+	g_object_unref (session_settings);
 }
 
 static void
@@ -1308,10 +1304,6 @@ activate_plugin (AnjutaPlugin *plugin)
 								 on_value_added_current_doc,
 								 on_value_removed_current_doc,
 								 plugin);
-
-	/* Connect to session */
-	g_signal_connect (G_OBJECT (plugin->shell), "load_session",
-					  G_CALLBACK (on_session_load), plugin);
 	return TRUE;
 }
 
@@ -1324,10 +1316,6 @@ deactivate_plugin (AnjutaPlugin *plugin)
 	loader_plugin = ANJUTA_PLUGIN_FILE_LOADER (plugin);
 
 	DEBUG_PRINT ("%s", "AnjutaFileLoaderPlugin: Deactivating File Loader plugin…");
-
-	/* Disconnect session */
-	g_signal_handlers_disconnect_by_func (G_OBJECT (plugin->shell),
-										  G_CALLBACK (on_session_load), plugin);
 
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
 	/* Remove watches */
@@ -1376,6 +1364,7 @@ anjuta_file_loader_plugin_class_init (GObjectClass *klass)
 
 	plugin_class->activate = activate_plugin;
 	plugin_class->deactivate = deactivate_plugin;
+	plugin_class->load_session = load_session;
 	klass->dispose = dispose;
 	klass->finalize = finalize;
 }

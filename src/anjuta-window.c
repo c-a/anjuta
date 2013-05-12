@@ -482,8 +482,9 @@ on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 			else if (anjuta_application_get_no_files (app))
 			{
 				/* Clear files from session */
-				anjuta_session_set_string_list (session, "File Loader",
-				                                "Files", NULL);
+				GSettings *loader_settings = anjuta_session_create_settings (session, "file-loader");
+				g_settings_set_strv (loader_settings, "files", NULL);
+				g_object_unref (loader_settings);
 			}
 			if (anjuta_application_get_geometry (app))
 			{

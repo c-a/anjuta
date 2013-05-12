@@ -1,0 +1,8 @@
+<schemalist>
+  <schema id="file-loader" path="/file-loader/">
+    <key type="as" name="files">
+      <default>[]</default>
+      <summary>Files to load at startup</summary>
+    </key>
+  </schema>
+</schemalist>

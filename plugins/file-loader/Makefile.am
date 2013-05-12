@@ -15,6 +15,10 @@ plugin_in_files = anjuta-loader.plugin.in
 loader_plugindir = $(anjuta_plugin_dir)
 dist_loader_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
 
+# Session GSettings
+anjuta_session_gsettings_SCHEMAS = file-loader.gschema.xml
+@ANJUTA_SESSION_GSETTINGS_RULES@
+
 # Include paths
 AM_CPPFLAGS = \
 	$(WARN_CFLAGS) \

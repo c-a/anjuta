@@ -158,14 +158,18 @@ on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
 	 */
 	if (plugin->project_file && !plugin->session_by_me)
 	{
-		list = anjuta_session_get_string_list (session,
-												"File Loader",
-												"Files");
-		list = g_list_append (list, anjuta_session_get_relative_uri_from_file (session, plugin->project_file, NULL));
-		anjuta_session_set_string_list (session, "File Loader",
-										"Files", list);
-		g_list_foreach (list, (GFunc)g_free, NULL);
-		g_list_free (list);
+		GSettings *loader_settings;
+		GList *files;
+
+		loader_settings = anjuta_session_create_settings (session, "file-loader");
+
+		files = anjuta_util_settings_get_string_list (loader_settings, "files");
+		files = g_list_prepend (files, anjuta_session_get_relative_uri_from_file (session, plugin->project_file, NULL));
+
+		anjuta_util_settings_set_string_list (loader_settings, "files", files);
+
+		g_list_free_full (files, g_object_unref);
+		g_object_unref (loader_settings);
 	}
 
 	/* Save shortcuts */
