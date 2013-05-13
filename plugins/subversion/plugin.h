@@ -78,7 +78,9 @@ struct _Subversion{
 	/* Log viewer */
 	GtkBuilder *log_bxml;
 	GtkWidget *log_viewer;
-	
+
+	/* Session settings */
+	GSettings *session_settings;
 	GList *svn_commit_logs;
 };
 

@@ -1,0 +1,8 @@
+<schemalist>
+  <schema id="subversion" path="/subversion/">
+    <key type="as" name="logs">
+      <default>[]</default>
+      <summary>List of commit logs</summary>
+    </key>
+  </schema>
+</schemalist>

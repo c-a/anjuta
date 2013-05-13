@@ -19,6 +19,10 @@ plugin_in_files = anjuta-subversion.plugin.in
 subversion_plugindir = $(anjuta_plugin_dir)
 dist_subversion_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
 
+# Session GSettings
+anjuta_session_gsettings_SCHEMAS = subversion.session.gschema.xml
+@ANJUTA_SESSION_GSETTINGS_RULES@
+
 AM_CPPFLAGS= \
 	$(WARN_CFLAGS) \
 	$(DEPRECATED_FLAGS) \

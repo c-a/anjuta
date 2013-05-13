@@ -421,12 +421,6 @@ value_added_current_editor (AnjutaPlugin *plugin, const char *name,
 	}
 }
 
-static void 
-subversion_plugin_load_commit_logs(Subversion *plugin, AnjutaSession *session)
-{
-	plugin->svn_commit_logs = anjuta_session_get_string_list (session, "Commit Logs", "Logs");
-}
-
 static void
 value_removed_current_editor (AnjutaPlugin *plugin,
 							  const char *name, gpointer data)
@@ -441,30 +435,36 @@ value_removed_current_editor (AnjutaPlugin *plugin,
 }
 
 static void
-on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
-                 AnjutaSession *session, Subversion *plugin)
+subversion_load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                         AnjutaSession *session)
 {
-	
-	
+	Subversion *subversion = ANJUTA_PLUGIN_SUBVERSION (plugin);
+
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
 	DEBUG_PRINT ("Loading session");
-	subversion_plugin_load_commit_logs(plugin, session);
-	
-	
+
+	g_clear_object (&subversion->session_settings);
+	subversion->session_settings = anjuta_session_create_settings (session, "subversion");
+
+	g_list_free_full(subversion->svn_commit_logs, g_free);
+	subversion->svn_commit_logs = anjuta_util_settings_get_string_list (subversion->session_settings,
+	                                                                "logs");
 }
 
 static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
-				 AnjutaSession *session, Subversion *plugin)
+subversion_save_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                         AnjutaSession *session)
 {
+	Subversion *subversion = ANJUTA_PLUGIN_SUBVERSION (plugin);
+
 	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
 		return;
 
-	DEBUG_PRINT ("Saving session");	
-	anjuta_session_set_string_list(session, "Commit Logs",
-								   "Logs", plugin->svn_commit_logs);					
+	DEBUG_PRINT ("Saving session");
+	anjuta_util_settings_set_string_list (subversion->session_settings,
+	                                      "logs", subversion->svn_commit_logs);
 }
 				 
 static gboolean
@@ -549,12 +549,7 @@ activate_plugin (AnjutaPlugin *plugin)
 		gtk_action_set_sensitive (revert_action, FALSE);
 		gtk_action_set_sensitive (resolve_action, FALSE);
 	}
-	
-	g_signal_connect (plugin->shell, "save-session",
-					  G_CALLBACK (on_session_save), plugin);
-    g_signal_connect (plugin->shell, "load_session",
-					  G_CALLBACK (on_session_load), plugin);
-							 
+
 	return TRUE;
 }
 
@@ -576,8 +571,8 @@ deactivate_plugin (AnjutaPlugin *plugin)
 								NULL);
 	
 	g_object_unref (ANJUTA_PLUGIN_SUBVERSION (plugin)->log_bxml);
-	g_list_free(ANJUTA_PLUGIN_SUBVERSION (plugin)->svn_commit_logs);
-	
+	g_list_free_full(ANJUTA_PLUGIN_SUBVERSION (plugin)->svn_commit_logs, g_free);
+
 	return TRUE;
 }
 
@@ -591,7 +586,10 @@ finalize (GObject *obj)
 static void
 dispose (GObject *obj)
 {
-	// Subversion *plugin = ANJUTA_PLUGIN_SUBVERSION (obj);
+	Subversion *plugin = ANJUTA_PLUGIN_SUBVERSION (obj);
+
+	g_clear_object (&plugin->session_settings);
+
 	G_OBJECT_CLASS (parent_class)->dispose (obj);
 }
 
@@ -620,6 +618,9 @@ subversion_class_init (GObjectClass *klass)
 
 	plugin_class->activate = activate_plugin;
 	plugin_class->deactivate = deactivate_plugin;
+	plugin_class->load_session = subversion_load_session;
+	plugin_class->save_session = subversion_save_session;
+
 	klass->dispose = dispose;
 	klass->finalize = finalize;
 }
