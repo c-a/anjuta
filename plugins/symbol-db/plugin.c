@@ -1530,21 +1530,11 @@ do_check_offline_files_changed (SymbolDBPlugin *sdb_plugin)
 }
 
 static void
-on_session_save (AnjutaShell *shell, AnjutaSessionPhase phase,
-				 AnjutaSession *session,
-				 SymbolDBPlugin *sdb_plugin)
+symbol_db_load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                        AnjutaSession *session)
 {
-	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
-		return;
+	SymbolDBPlugin *sdb_plugin = ANJUTA_PLUGIN_SYMBOL_DB (plugin);
 
-	DEBUG_PRINT ("%s", "SymbolDB: session_save");
-}
-
-static void
-on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
-				 AnjutaSession *session,
-				 SymbolDBPlugin *sdb_plugin)
-{
 	if (phase == ANJUTA_SESSION_PHASE_START)
 	{
 		DEBUG_PRINT ("SymbolDB: session_loading started. Getting info from %s",
@@ -1569,7 +1559,7 @@ on_session_load (AnjutaShell *shell, AnjutaSessionPhase phase,
 		DEBUG_PRINT ("SymbolDB: session_loading finished");
 		
 		/* Show the symbols for the current editor */
-		docman = anjuta_shell_get_interface (shell, IAnjutaDocumentManager, NULL);
+		docman = anjuta_shell_get_interface (plugin->shell, IAnjutaDocumentManager, NULL);
 		if (docman)
 		{
 			IAnjutaDocument* cur_doc = 
@@ -2258,13 +2248,6 @@ symbol_db_activate (AnjutaPlugin *plugin)
 									IANJUTA_PROJECT_MANAGER_PROJECT_ROOT_URI,
 									on_project_root_added,
 									on_project_root_removed, NULL);
-	
-	/* Determine session state */
-	g_signal_connect (plugin->shell, "load-session", 
-					  G_CALLBACK (on_session_load), plugin);
-	
-	g_signal_connect (plugin->shell, "save-session", 
-					  G_CALLBACK (on_session_save), plugin);
 
 	/* be sure to hide the progress bars in case no project has been opened. */
 	gtk_widget_hide (sdb_plugin->progress_bar_project);
@@ -2309,13 +2292,6 @@ symbol_db_deactivate (AnjutaPlugin *plugin)
 	    							sdb_plugin->popup_action_group);
 	gtk_ui_manager_remove_action_group (GTK_UI_MANAGER (sdb_plugin->ui),
 	    							sdb_plugin->menu_action_group);
-	g_signal_handlers_disconnect_by_func (G_OBJECT (plugin->shell),
-										  on_session_load,
-										  plugin);
-
-	g_signal_handlers_disconnect_by_func (G_OBJECT (plugin->shell),
-										  on_session_save,
-										  plugin);
 
 	g_signal_handlers_disconnect_by_func (G_OBJECT (sdb_plugin->sdbs),
 										  on_system_scan_package_start,
@@ -2490,6 +2466,8 @@ symbol_db_class_init (GObjectClass *klass)
 
 	plugin_class->activate = symbol_db_activate;
 	plugin_class->deactivate = symbol_db_deactivate;
+	plugin_class->load_session = symbol_db_load_session;
+
 	klass->finalize = symbol_db_finalize;
 	klass->dispose = symbol_db_dispose;
 	
