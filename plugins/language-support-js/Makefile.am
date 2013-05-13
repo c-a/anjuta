@@ -65,10 +65,15 @@ libjs_support_plugin_la_LIBADD = \
 	$(LIBANJUTA_LIBS) \
 	$(XML_LIBS)
 
+# GSettings
 gsettings_in_file = org.gnome.anjuta.plugins.js.gschema.xml.in
 gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
 @INTLTOOL_XML_NOMERGE_RULE@
 @GSETTINGS_RULES@
+
+# Session GSettings
+anjuta_session_gsettings_SCHEMAS = language-support-js.session.gschema.xml
+@ANJUTA_SESSION_GSETTINGS_RULES@
 
 EXTRA_DIST = \
 	$(plugin_in_files) \

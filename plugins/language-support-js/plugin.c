@@ -61,6 +61,18 @@ on_jsdirs_rm_button_clicked (GtkButton *button, gpointer user_data);
 G_MODULE_EXPORT void
 on_jsdirs_add_button_clicked (GtkButton *button, gpointer user_data);
 
+static void
+js_support_plugin_load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase, AnjutaSession *session)
+{
+	JSLang *js_support_plugin = (JSLang*) plugin;
+
+	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
+		return;
+
+	g_clear_object (&js_support_plugin->session_settings);
+	js_support_plugin->session_settings = anjuta_session_create_settings (session, "language-support-js");
+}
+
 static gboolean
 js_support_plugin_activate (AnjutaPlugin *plugin)
 {
@@ -74,6 +86,7 @@ js_support_plugin_activate (AnjutaPlugin *plugin)
 					 on_value_added_current_editor,
 					 on_value_removed_current_editor,
 					 plugin);
+
 	return TRUE;
 }
 
@@ -85,6 +98,7 @@ js_support_plugin_deactivate (AnjutaPlugin *plugin)
 	DEBUG_PRINT ("%s", "JSLang: Dectivating JSLang plugin ...");
 	js_support_plugin = (JSLang*) plugin;
 	anjuta_plugin_remove_watch (plugin, js_support_plugin->editor_watch_id, TRUE);
+
 	return TRUE;
 }
 
@@ -102,6 +116,9 @@ js_support_plugin_dispose (GObject *obj)
 	g_assert (self != NULL);
 
 	g_clear_object (&self->symbol);
+
+	g_clear_object (&self->prefs);
+	g_clear_object (&self->session_settings);
 
 	G_OBJECT_CLASS (parent_class)->dispose (obj);
 }
@@ -123,6 +140,8 @@ js_support_plugin_class_init (GObjectClass *klass)
 
 	plugin_class->activate = js_support_plugin_activate;
 	plugin_class->deactivate = js_support_plugin_deactivate;
+	plugin_class->load_session = js_support_plugin_load_session;
+
 	klass->finalize = js_support_plugin_finalize;
 	klass->dispose = js_support_plugin_dispose;
 }
@@ -210,17 +229,12 @@ on_value_removed_current_editor (AnjutaPlugin *plugin, const gchar *name,
 static void
 jsdirs_save (GtkTreeModel *list_store)
 {
+	JSLang *plugin;
 	GtkTreeIter iter;
-	const gchar *project_root = NULL;
-	anjuta_shell_get (ANJUTA_PLUGIN (getPlugin ())->shell,
-					  IANJUTA_PROJECT_MANAGER_PROJECT_ROOT_URI,
-					  G_TYPE_STRING, &project_root, NULL);
-
-	GFile *tmp = g_file_new_for_uri (project_root);
-	AnjutaSession *session = anjuta_session_new (g_file_get_path (tmp));
-	g_object_unref (tmp);
-
 	GList *dirs = NULL;
+
+	plugin = getPlugin();
+
 	if (!gtk_tree_model_iter_children (list_store, &iter, NULL))
 		return;
 	do
@@ -232,8 +246,10 @@ jsdirs_save (GtkTreeModel *list_store)
 
 		dirs = g_list_append (dirs, dir);
 	} while (gtk_tree_model_iter_next (list_store, &iter));
-	anjuta_session_set_string_list (session, "options", "js_dirs", dirs);
-	anjuta_session_sync (session);
+
+	anjuta_util_settings_set_string_list (plugin->session_settings,
+	                                      "js-dirs", dirs);
+	g_list_free_full (dirs, g_free);
 }
 
 G_MODULE_EXPORT void
@@ -287,21 +303,14 @@ on_jsdirs_add_button_clicked (GtkButton *button, gpointer user_data)
 static void
 jsdirs_init_treeview (JSLang* plugin)
 {
-	const gchar *project_root = NULL;
 	GtkTreeIter iter;
 	GtkListStore *list_store = GTK_LIST_STORE (gtk_builder_get_object (
 	                                               plugin->bxml, JSDIRS_LISTSTORE));
 	if (!list_store)
 		return;
 
-	anjuta_shell_get (ANJUTA_PLUGIN (plugin)->shell,
-					  IANJUTA_PROJECT_MANAGER_PROJECT_ROOT_URI,
-					  G_TYPE_STRING, &project_root, NULL);
-
-	GFile *tmp = g_file_new_for_uri (project_root);
-	AnjutaSession *session = anjuta_session_new (g_file_get_path (tmp));
-	g_object_unref (tmp);
-	GList* dir_list = anjuta_session_get_string_list (session, "options", "js_dirs");
+	GList* dir_list = anjuta_util_settings_get_string_list (plugin->session_settings,
+	                                                        "js-dirs");
 	GList *i;
 	gtk_list_store_clear (list_store);
 
@@ -315,6 +324,8 @@ jsdirs_init_treeview (JSLang* plugin)
 		gtk_list_store_append (list_store, &iter);
 		gtk_list_store_set (list_store, &iter, 0, ".", -1);
 	}
+
+	g_list_free_full (dir_list, g_free);
 }
 
 #define PREF_WIDGET_SPACE "preferences:completion-space-after-func"

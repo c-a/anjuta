@@ -42,6 +42,7 @@ struct _JSLang{
 	/* Preferences */
 	GtkBuilder* bxml;
 	GSettings* prefs;
+	GSettings* session_settings;
 };
 
 struct _JSLangClass{

@@ -27,7 +27,7 @@
 #include "prefs.h"
 
 static gchar*
-get_gjs_path ()
+get_gjs_path (void)
 {
 	JSLang* plugin = (JSLang*)getPlugin ();
 
@@ -48,34 +48,27 @@ get_gjs_path ()
 GList *
 get_import_include_paths ()
 {
-	const gchar *project_root = NULL;
+	JSLang *plugin = getPlugin();
 	GList *ret = NULL;
 	gchar *path = get_gjs_path ();
 	if (path)
 		ret = g_list_append (ret, path);
 
-	anjuta_shell_get (ANJUTA_PLUGIN (getPlugin ())->shell,
-					  IANJUTA_PROJECT_MANAGER_PROJECT_ROOT_URI,
-					  G_TYPE_STRING, &project_root, NULL);
-	if (project_root)
+	GList* dir_list = anjuta_util_settings_get_string_list (plugin->session_settings,
+	                                                        "js-dirs");
+	GList *i;
+	for (i = dir_list; i; i = g_list_next (i))
 	{
-		GFile *tmp = g_file_new_for_uri (project_root);
-		AnjutaSession *session = anjuta_session_new (g_file_get_path (tmp));
-		g_object_unref (tmp);
-	
-		GList* dir_list = anjuta_session_get_string_list (session, "options", "js_dirs");
-		GList *i;
-		for (i = dir_list; i; i = g_list_next (i))
-		{
-			g_assert (i->data != NULL);
-			ret = g_list_append (ret, i->data);
-		}
-		if (!dir_list)
-		{
-			ret = g_list_append (ret, g_strdup ("."));
-			anjuta_session_set_string_list (session, "options", "js_dirs", ret);
-		}
+		g_assert (i->data != NULL);
+		ret = g_list_append (ret, i->data);
 	}
+	if (!dir_list)
+	{
+		ret = g_list_append (ret, g_strdup ("."));
+		anjuta_util_settings_set_string_list (plugin->session_settings,
+		                                      "js-dirs", ret);
+	}
+
 	return ret;
 }
 
@@ -109,7 +102,7 @@ highlight_lines (GList *lines)
 	JSLang* plugin = (JSLang*)getPlugin ();
 
 	if (!plugin->prefs)
-		plugin->prefs = anjuta_shell_get_preferences (ANJUTA_PLUGIN (plugin)->shell, NULL);
+		plugin->prefs = g_settings_new ("org.gnome.anjuta.plugins.js");
 
 	if (!g_settings_get_boolean (plugin->prefs, HIGHLIGHT_MISSEDSEMICOLON))
 	{
@@ -240,7 +233,7 @@ get_gir_path ()
 	JSLang* plugin = (JSLang*)getPlugin ();
 
 	if (!plugin->prefs)
-		plugin->prefs = anjuta_shell_get_preferences (ANJUTA_PLUGIN (plugin)->shell, NULL);
+		plugin->prefs = g_settings_new ("org.gnome.anjuta.plugins.js");
 
 	gchar *path = g_settings_get_string (plugin->prefs, GIR_DIR_KEY);
 	if (!path || strlen (path) < 1)

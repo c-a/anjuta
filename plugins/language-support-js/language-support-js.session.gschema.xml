@@ -1,0 +1,8 @@
+<schemalist>
+  <schema id="language-support-js" path="/language-support-js/">
+    <key type="as" name="js-dirs">
+      <default>[]</default>
+      <summary>List of javascript directories</summary>
+    </key>
+  </schema>
+</schemalist>
