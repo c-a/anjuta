@@ -786,9 +786,9 @@ anjuta_window_instance_init (AnjutaWindow *win)
 	gtk_box_pack_start (GTK_BOX (main_box), hbox, TRUE, TRUE, 0);
 
 	/* Connect to session */
-	g_signal_connect (G_OBJECT (win), "save_session",
+	g_signal_connect (G_OBJECT (win), "save-session",
 					  G_CALLBACK (on_session_save), win);
-	g_signal_connect (G_OBJECT (win), "load_session",
+	g_signal_connect (G_OBJECT (win), "load-session",
 					  G_CALLBACK (on_session_load), win);
 
 	/* Loading accels */
@@ -1161,11 +1161,11 @@ anjuta_window_session_save (AnjutaShell *shell)
 {
 	AnjutaWindow* win = ANJUTA_WINDOW (shell);
 
-	g_signal_emit_by_name (G_OBJECT (shell), "save_session",
+	g_signal_emit_by_name (G_OBJECT (shell), "save-session",
 						   ANJUTA_SESSION_PHASE_START, win->session);
-	g_signal_emit_by_name (G_OBJECT (shell), "save_session",
+	g_signal_emit_by_name (G_OBJECT (shell), "save-session",
 						   ANJUTA_SESSION_PHASE_NORMAL, win->session);
-	g_signal_emit_by_name (G_OBJECT (shell), "save_session",
+	g_signal_emit_by_name (G_OBJECT (shell), "save-session",
 						   ANJUTA_SESSION_PHASE_END, win->session);
 
 	anjuta_session_sync (win->session);
@@ -1206,7 +1206,7 @@ anjuta_window_session_load (AnjutaShell *shell, AnjutaSession *session)
 		if (child != NULL)
 		{
 			/* Abort previous session */
-			g_signal_emit_by_name (G_OBJECT (shell), "load_session",
+			g_signal_emit_by_name (G_OBJECT (shell), "load-session",
 								   ANJUTA_SESSION_PHASE_END, session);
 			g_object_unref (session);
 			/* Reread session in case PHASE_END has triggered another session */
@@ -1217,17 +1217,17 @@ anjuta_window_session_load (AnjutaShell *shell, AnjutaSession *session)
 		 * win->loading_session is replaced. */
 		g_object_ref (session);
 
-		g_signal_emit_by_name (G_OBJECT (shell), "load_session",
+		g_signal_emit_by_name (G_OBJECT (shell), "load-session",
 							   ANJUTA_SESSION_PHASE_START, session);
 		child = win->loading_session;
 		if (child != session) continue;
 
-		g_signal_emit_by_name (G_OBJECT (shell), "load_session",
+		g_signal_emit_by_name (G_OBJECT (shell), "load-session",
 							   ANJUTA_SESSION_PHASE_NORMAL, session);
 		child = win->loading_session;
 		if (child != session) continue;
 
-		g_signal_emit_by_name (G_OBJECT (shell), "load_session",
+		g_signal_emit_by_name (G_OBJECT (shell), "load-session",
 							   ANJUTA_SESSION_PHASE_END, session);
 		child = win->loading_session;
 		if (child == session) break;
