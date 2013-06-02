@@ -306,23 +306,25 @@ on_value_removed (AnjutaPlugin *plugin, const gchar *name,
 		                         ANJUTA_SHELL_PLACEMENT_CENTER,
 		                         NULL);
 		anjuta_shell_present_widget (shell, splugin->starter, NULL);
+		g_object_add_weak_pointer (G_OBJECT (splugin->starter),
+		                           (void**)&splugin->starter);
 		g_object_unref (splugin->starter);
 	}
 }
 
 static void
-on_session_load (AnjutaShell* shell,
-                 AnjutaSessionPhase phase,
-                 AnjutaSession* session,
-                 StarterPlugin* plugin)
+load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+              AnjutaSession* session)
 {
+	StarterPlugin* splugin = ANJUTA_PLUGIN_STARTER (plugin);
+
 	if (phase == ANJUTA_SESSION_PHASE_END)
 	{
-		if (!plugin->starter)
+		if (!splugin->starter)
 			on_value_removed (ANJUTA_PLUGIN (plugin), NULL, plugin);
-		if (plugin->starter)
+		if (splugin->starter)
 		{
-			anjuta_shell_maximize_widget (shell,
+			anjuta_shell_maximize_widget (plugin->shell,
 			                              "AnjutaStarter",
 			                              NULL);
 		}
@@ -350,11 +352,6 @@ activate_plugin (AnjutaPlugin *plugin)
 								 NULL);
 	on_value_removed (plugin, NULL, splugin);
 
-	g_signal_connect (anjuta_plugin_get_shell (plugin),
-	                  "load-session",
-	                  G_CALLBACK (on_session_load),
-	                  plugin);
-	
 	return TRUE;
 }
 
@@ -400,6 +397,7 @@ starter_plugin_class_init (GObjectClass *klass)
 
 	plugin_class->activate = activate_plugin;
 	plugin_class->deactivate = deactivate_plugin;
+	plugin_class->load_session = load_session;
 	klass->dispose = dispose;
 	klass->finalize = finalize;
 }
