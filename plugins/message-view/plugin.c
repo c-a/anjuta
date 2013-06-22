@@ -515,7 +515,7 @@ ipreferences_merge(IAnjutaPreferences* ipref, AnjutaPreferences* prefs, GError**
 		g_error_free (error);
 		return;
 	}
-	anjuta_preferences_add_from_builder (prefs, bxml, plugin->settings,
+	anjuta_preferences_add_from_builder (prefs, bxml, plugin->settings, NULL,
 									"Messages", _("Messages"),
 									 ANJUTA_PIXMAP_MESSAGES);
 

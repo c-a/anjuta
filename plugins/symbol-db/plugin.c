@@ -2540,7 +2540,7 @@ ipreferences_merge(IAnjutaPreferences* ipref, AnjutaPreferences* prefs, GError**
 
 	anjuta_preferences_add_from_builder (prefs,
 	                                     sdb_plugin->prefs_bxml,
-	                                     sdb_plugin->settings,
+	                                     sdb_plugin->settings, NULL,
 	                                     BUILDER_ROOT, 
 	                                     _("Symbol Database"),  
 	                                     ICON_FILE);

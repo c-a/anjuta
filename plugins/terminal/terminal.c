@@ -914,7 +914,7 @@ ipreferences_merge(IAnjutaPreferences* ipref, AnjutaPreferences* prefs, GError**
 
 
 	anjuta_preferences_add_from_builder (prefs, bxml,
-	                                     term_plugin->settings,
+	                                     term_plugin->settings, NULL,
 	                                     "Terminal", _("Terminal"), ICON_FILE);
 
 	term_plugin->pref_profile_combo = GTK_WIDGET (gtk_builder_get_object (bxml, "profile_list_combo"));

@@ -2131,7 +2131,7 @@ ipreferences_merge(IAnjutaPreferences* ipref, AnjutaPreferences* prefs, GError**
 	g_object_bind_property (show_tabs_radio, "active", tabs_settings_box, "sensitive", 0);
 
 	anjuta_preferences_add_from_builder (prefs, bxml,
-	                                     doc_plugin->settings,
+	                                     doc_plugin->settings, NULL,
 	                                     "Documents", _("Documents"),  ICON_FILE);
 
 	g_object_unref (G_OBJECT (bxml));

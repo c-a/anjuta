@@ -540,8 +540,8 @@ ipreferences_merge (IAnjutaPreferences* ipref,
 		g_error_free (error);
 	}
 
-	anjuta_preferences_add_from_builder (prefs, bxml, fm->settings, FILE_MANAGER_BUILDER_ROOT, _("File Manager"),
-								 ICON_FILE);
+	anjuta_preferences_add_from_builder (prefs, bxml, fm->settings, NULL,
+								 FILE_MANAGER_BUILDER_ROOT, _("File Manager"), ICON_FILE);
 }
 
 static void

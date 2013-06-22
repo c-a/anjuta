@@ -67,9 +67,13 @@ struct _AnjutaPreferencesPriv
 
 	gchar				*common_schema_id;
 	GHashTable			*common_gsettings;
+
+	AnjutaSession		*session;
+	GHashTable			*common_session_gsettings;
 };
 
-#define PREFERENCE_PROPERTY_PREFIX "preferences"
+#define PREFERENCE_PROPERTY_PREFIX         "preferences"
+#define SESSION_PREFERENCE_PROPERTY_PREFIX "session-preferences"
 
 G_DEFINE_TYPE (AnjutaPreferences, anjuta_preferences, G_TYPE_OBJECT);
 
@@ -236,6 +240,8 @@ anjuta_preferences_register_property (AnjutaPreferences *pr,
 /**
  * anjuta_preferences_register_all_properties_from_builder_xml:
  * @pr: a #AnjutaPreferences Object
+ * @settings: a #GSettings object where regular settings will be stored.
+ * @session_settings: a #GSettings object where session setings will be stored.
  * @builder: GtkBuilder object containing the properties widgets.
  * @parent: Parent widget in the builder object
  *
@@ -247,6 +253,7 @@ void
 anjuta_preferences_register_all_properties_from_builder_xml (AnjutaPreferences *pr,
                                                              GtkBuilder *builder,
                                                              GSettings *settings,
+                                                             GSettings *session_settings,
                                                              GtkWidget *parent)
 {
 	GSList *widgets;
@@ -263,7 +270,8 @@ anjuta_preferences_register_all_properties_from_builder_xml (AnjutaPreferences *
 		const gchar *ptr;
 		GtkWidget *widget, *p;
 		gboolean cont_flag = FALSE;
-		GSettings *key_settings = settings;
+		GSettings *key_settings;
+		gboolean session_preference;
 
 		if (!GTK_IS_WIDGET (node->data) || !GTK_IS_BUILDABLE (node->data))
 			continue;
@@ -271,13 +279,22 @@ anjuta_preferences_register_all_properties_from_builder_xml (AnjutaPreferences *
 		widget = node->data;
 		name = gtk_buildable_get_name (GTK_BUILDABLE (widget));
 
-		if (!g_str_has_prefix (name, PREFERENCE_PROPERTY_PREFIX))
-			continue;
+		if (g_str_has_prefix (name, PREFERENCE_PROPERTY_PREFIX))
+		{
+			key = &name[strlen (PREFERENCE_PROPERTY_PREFIX)];
+			key_settings = settings;
+			session_preference = FALSE;
+		}
+		else if (g_str_has_prefix (name, SESSION_PREFERENCE_PROPERTY_PREFIX))
+		{
+			key = &name[strlen (SESSION_PREFERENCE_PROPERTY_PREFIX)];
+			key_settings = session_settings;
+			session_preference = TRUE;
+		}
 
 		/* Only ':' is needed between "preferences" and the key name but accept
 		 * '_' and additional fields separated by ':' to work with the old
 		 * widget naming scheme. */
-		key = &name[strlen (PREFERENCE_PROPERTY_PREFIX)];
 		if ((*key != '_') && (*key != ':'))
 			continue;
 
@@ -293,7 +310,11 @@ anjuta_preferences_register_all_properties_from_builder_xml (AnjutaPreferences *
 			const gchar *id = strrchr (key, '.');
 			GString *schema_id;
 
-			schema_id = g_string_new (pr->priv->common_schema_id);
+			if (session_preference == FALSE)
+				schema_id = g_string_new (pr->priv->common_schema_id);
+			else
+				schema_id = g_string_new ("");
+
 			if (key != id)
 			{
 				g_string_append_len (schema_id, key, id - key);
@@ -303,14 +324,38 @@ anjuta_preferences_register_all_properties_from_builder_xml (AnjutaPreferences *
 			key_settings = (GSettings *)g_hash_table_lookup (pr->priv->common_gsettings, schema_id->str);
 			if (key_settings == NULL)
 			{
-				key_settings = g_settings_new (schema_id->str);
-				g_hash_table_insert (pr->priv->common_gsettings, schema_id->str, key_settings);
-				g_string_free (schema_id, FALSE);
+				if (session_preference)
+				{
+					if (pr->priv->session != NULL)
+					{
+						key_settings = anjuta_session_create_settings (pr->priv->session, schema_id->str);
+						g_hash_table_insert (pr->priv->common_gsettings, schema_id->str, key_settings);
+						g_string_free (schema_id, FALSE);
+					}
+					else
+						g_string_free (schema_id, TRUE);
+				}
+				else
+				{
+					key_settings = g_settings_new (schema_id->str);
+					g_hash_table_insert (pr->priv->common_gsettings, schema_id->str, key_settings);
+					g_string_free (schema_id, FALSE);
+				}
 			}
 			else
 			{
 				g_string_free (schema_id, TRUE);
 			}
+		}
+
+		if (key_settings == NULL)
+		{
+			if (session_preference)
+				g_critical ("Session preference widget named %s found but no session settings object was provided", name);
+			else
+				g_critical ("Preference widget named %s found but no settings object was provided", name);
+
+			continue;
 		}
 
 		/* Added only if it's a descendant child of the parent */
@@ -329,7 +374,10 @@ anjuta_preferences_register_all_properties_from_builder_xml (AnjutaPreferences *
 
 		if (!anjuta_preferences_register_property (pr, key_settings, widget, key))
 		{
-			g_critical ("Invalid preference widget named %s, check anjuta_preferences_add_page function documentation.", name);
+			if (session_preference)
+				g_critical ("Invalid session preference widget named %s, check anjuta_preferences_add_page function documentation.", name);
+			else
+				g_critical ("Invalid preference widget named %s, check anjuta_preferences_add_page function documentation.", name);
 		}
 	}
 }
@@ -339,6 +387,7 @@ anjuta_preferences_register_all_properties_from_builder_xml (AnjutaPreferences *
  * @pr: a #AnjutaPreferences object
  * @builder: #GtkBuilder object containing the preferences page
  * @settings: the #GSettings object associated with that page
+ * @session_settings: the session #GSettings object associated with that page
  * @gwidget_name: Page widget name (as give with glade interface editor).
  * The widget will be searched with the given name and detached
  * (that is, removed from the container, if present) from it's parent.
@@ -352,8 +401,11 @@ anjuta_preferences_register_all_properties_from_builder_xml (AnjutaPreferences *
  * widget names of the form:
  *
  * <programlisting>
- *     preferences(_.*)?:(.SCHEMAID)?PROPERTYKEY
+ *     [preferences|session-preferences](_.*)?:(.SCHEMAID)?PROPERTYKEY
  *     where,
+ *       if "preferences" is used the setting will be stored as a global setting
+ *       or if "session-preferences" is used the setting will be stored as a
+ *       session setting.
  *       SCHEMAID if present the key will be added not in the page settings but
  *                in common settings using SCHEMAID as a suffix.
  *       PROPERTYKEY is the property key. e.g - 'tab-size'.
@@ -382,6 +434,7 @@ void
 anjuta_preferences_add_from_builder (AnjutaPreferences *pr,
                                      GtkBuilder *builder,
                                      GSettings *settings,
+                                     GSettings *session_settings,
                                      const gchar *widget_name,
                                      const gchar *title,
                                      const gchar *icon_filename)
@@ -417,7 +470,7 @@ anjuta_preferences_add_from_builder (AnjutaPreferences *pr,
 	pixbuf = gdk_pixbuf_new_from_file (image_path, NULL);
 	anjuta_preferences_dialog_add_page (ANJUTA_PREFERENCES_DIALOG (pr->priv->prefs_dialog),
 										widget_name, title, pixbuf, page);
-	anjuta_preferences_register_all_properties_from_builder_xml (pr, builder, settings, page);
+	anjuta_preferences_register_all_properties_from_builder_xml (pr, builder, settings, session_settings, page);
 	g_object_unref (page);
 	g_free (image_path);
 	g_object_unref (pixbuf);
@@ -517,6 +570,22 @@ anjuta_preferences_is_dialog_created (AnjutaPreferences *pr)
 	return (pr->priv->prefs_dialog != NULL);
 }
 
+/**
+ * anjuta_preferences_set_session:
+ * @pr: a #AnjutaPreferences object
+ * @session: a #AnjutaSession object
+ *
+ * Set the @AnjutaSession from which session settings should be created.
+ */
+void
+anjuta_preferences_set_session (AnjutaPreferences *pr, AnjutaSession *session)
+{
+	pr->priv->session = session;
+	g_object_add_weak_pointer (G_OBJECT (session), (void **)&pr->priv->session);
+
+	g_hash_table_remove_all (pr->priv->common_session_gsettings);
+}
+
 static void
 anjuta_preferences_dispose (GObject *obj)
 {
@@ -527,6 +596,11 @@ anjuta_preferences_dispose (GObject *obj)
 		g_hash_table_destroy (pr->priv->common_gsettings);
 		pr->priv->common_gsettings = NULL;
 	}
+	if (pr->priv->common_session_gsettings)
+	{
+		g_hash_table_destroy (pr->priv->common_session_gsettings);
+		pr->priv->common_session_gsettings = NULL;
+	}
 	g_free (pr->priv->common_schema_id);
 	pr->priv->common_schema_id = NULL;
 }
@@ -535,6 +609,11 @@ static void
 anjuta_preferences_init (AnjutaPreferences *pr)
 {
 	pr->priv = g_new0 (AnjutaPreferencesPriv, 1);
+
+	pr->priv->common_gsettings = 
+		g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) g_object_unref);
+	pr->priv->common_session_gsettings =
+		g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) g_object_unref);
 }
 
 static void
@@ -575,9 +654,7 @@ anjuta_preferences_new (AnjutaPluginManager *plugin_manager, const gchar *common
 	pr = g_object_new (ANJUTA_TYPE_PREFERENCES, NULL);
 	pr->priv->plugin_manager = g_object_ref (plugin_manager);
 	pr->priv->common_schema_id = g_strdup (common_schema_id);
-	pr->priv->common_gsettings = g_hash_table_new_full (g_str_hash, g_str_equal,
-	                                                    g_free,
-	                                                    (GDestroyNotify) g_object_unref);
+
 	return pr;
 
 }

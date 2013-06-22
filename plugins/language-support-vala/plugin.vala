@@ -652,7 +652,7 @@ public class ValaPlugin : Plugin, IAnjuta.Preferences {
 		} catch (Error err) {
 			warning ("Couldn't load builder file: %s", err.message);
 		}
-		prefs.add_from_builder (bxml, settings, "preferences", _("Auto-complete"),
+		prefs.add_from_builder (bxml, settings, null, "preferences", _("Auto-complete"),
 		                        ICON_FILE);
 		var toggle = bxml.get_object (PREF_WIDGET_AUTO) as ToggleButton;
 		toggle.toggled.connect (on_autocompletion_toggled);

@@ -1460,7 +1460,7 @@ ipreferences_merge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
         g_error_free (error);
     }
     anjuta_preferences_add_from_builder (prefs,
-                                         plugin->bxml, plugin->settings,
+                                         plugin->bxml, plugin->settings, NULL,
                                          "preferences", _("API Tags (C/C++)"),
                                          ICON_FILE);
     toggle = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_PACKAGES));

@@ -469,7 +469,7 @@ ipreferences_merge(IAnjutaPreferences* ipref, AnjutaPreferences* prefs, GError**
 		g_warning("Couldn't load builder file: %s", error->message);
 		g_error_free(error);
 	}
-	anjuta_preferences_add_from_builder (prefs, bxml, plugin->settings, "cvs", _("CVS"), ICON_FILE);
+	anjuta_preferences_add_from_builder (prefs, bxml, plugin->settings, NULL, "cvs", _("CVS"), ICON_FILE);
 	g_object_unref (bxml);
 }
 

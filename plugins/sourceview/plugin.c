@@ -357,7 +357,7 @@ ipreferences_merge(IAnjutaPreferences* ipref, AnjutaPreferences* prefs, GError**
 	}
 	anjuta_preferences_add_from_builder (prefs,
 	                                     builder,
-	                                     plugin->settings,
+	                                     plugin->settings, NULL,
 	                                     "Editor",
 	                                     _("GtkSourceView Editor"),
 	                                     ICON_FILE);

@@ -390,7 +390,7 @@ gdb_merge_preferences (AnjutaPreferences* prefs, GList **list)
 											-1);
 	}
 	
-	anjuta_preferences_add_from_builder (prefs, bxml, NULL, GDB_PREFS_ROOT, _("Gdb Debugger"),  ICON_FILE);
+	anjuta_preferences_add_from_builder (prefs, bxml, NULL, NULL, GDB_PREFS_ROOT, _("Gdb Debugger"),  ICON_FILE);
 
 	g_object_unref (bxml);
 }

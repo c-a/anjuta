@@ -358,7 +358,7 @@ ipreferences_merge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
         g_error_free (error);
     }
     anjuta_preferences_add_from_builder (prefs,
-                                         plugin->bxml, plugin->settings,
+                                         plugin->bxml, plugin->settings, NULL,
                                          "preferences", _("Indentation"),
                                          ICON_FILE);
 }

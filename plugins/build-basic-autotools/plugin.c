@@ -2965,7 +2965,7 @@ ipreferences_merge(IAnjutaPreferences* ipref, AnjutaPreferences* prefs, GError**
 	g_signal_connect(G_OBJECT(make_check), "toggled", G_CALLBACK(on_root_check_toggled), make_entry);
 	on_root_check_toggled (make_check, make_entry);
 
-	anjuta_preferences_add_from_builder (prefs, bxml, plugin->settings,
+	anjuta_preferences_add_from_builder (prefs, bxml, plugin->settings, NULL,
 	                                     BUILD_PREFS_ROOT, _("Build Autotools"),  ICON_FILE);
 
 	g_object_unref (bxml);

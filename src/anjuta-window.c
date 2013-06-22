@@ -1017,7 +1017,7 @@ anjuta_window_install_preferences (AnjutaWindow *win)
 		g_error_free (error);
 		return;
 	}
-	anjuta_preferences_add_from_builder (win->preferences, builder, win->settings,
+	anjuta_preferences_add_from_builder (win->preferences, builder, win->settings, NULL,
 								 "General", _("General"), ICON_FILE);
 	notebook = 	GTK_WIDGET (gtk_builder_get_object (builder, "General"));
 	shortcuts = anjuta_ui_get_accel_editor (ANJUTA_UI (win->ui));

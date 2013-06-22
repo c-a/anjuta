@@ -371,7 +371,7 @@ ipreferences_merge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
 	
 	anjuta_preferences_add_from_builder (prefs,
 	                                     plugin->bxml,
-	                                     plugin->prefs,
+	                                     plugin->prefs, NULL,
 	                                     "preferences", _("JavaScript"),
 	                                     ICON_FILE);
     toggle = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_AUTO));

@@ -26,6 +26,7 @@
 
 #include <libanjuta/anjuta-preferences-dialog.h>
 #include <libanjuta/anjuta-plugin-manager.h>
+#include <libanjuta/anjuta-session.h>
 
 G_BEGIN_DECLS
 
@@ -67,9 +68,12 @@ GType anjuta_preferences_get_type (void);
 AnjutaPreferences *anjuta_preferences_new (AnjutaPluginManager *plugin_manager, const gchar *common_schema_id);
 AnjutaPreferences *anjuta_preferences_default (void);
 
+void anjuta_preferences_set_session (AnjutaPreferences *pr, AnjutaSession *session);
+
 void anjuta_preferences_add_from_builder (AnjutaPreferences *pr,
                                           GtkBuilder *builder,
                                           GSettings *settings,
+                                          GSettings *session_settings,
                                           const gchar *glade_widget_name,
                                           const gchar *stitle,
                                           const gchar *icon_filename);
@@ -84,6 +88,7 @@ void anjuta_preferences_remove_page (AnjutaPreferences *pr,
 void anjuta_preferences_register_all_properties_from_builder_xml (AnjutaPreferences* pr,
                                                                   GtkBuilder *builder,
                                                                   GSettings *settings,
+                                                                  GSettings *session_settings,
                                                                   GtkWidget *parent);
 gboolean
 anjuta_preferences_register_property (AnjutaPreferences *pr,

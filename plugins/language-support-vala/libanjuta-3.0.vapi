@@ -376,9 +376,9 @@ namespace Anjuta {
 	public class Preferences : GLib.Object {
 		[CCode (has_construct_function = false)]
 		public Preferences (Anjuta.PluginManager plugin_manager, string common_schema_id);
-		public void add_from_builder (Gtk.Builder builder, GLib.Settings settings, string glade_widget_name, string stitle, string icon_filename);
+		public void add_from_builder (Gtk.Builder builder, GLib.Settings settings, GLib.Settings? session_settings, string glade_widget_name, string stitle, string icon_filename);
 		public bool is_dialog_created ();
-		public void register_all_properties_from_builder_xml (Gtk.Builder builder, GLib.Settings settings, Gtk.Widget parent);
+		public void register_all_properties_from_builder_xml (Gtk.Builder builder, GLib.Settings settings, GLib.Settings? session_settings, Gtk.Widget parent);
 		public bool register_property (GLib.Settings settings, Gtk.Widget object, string key);
 		public void remove_page (string page_name);
 	}

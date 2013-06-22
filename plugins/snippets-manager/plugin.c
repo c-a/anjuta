@@ -938,7 +938,7 @@ ipreferences_merge (IAnjutaPreferences* ipref,
 		g_warning ("Couldn't load preferences ui file: %s", error->message);
 		g_error_free (error);
 	}
-	anjuta_preferences_add_from_builder (prefs, bxml, snippets_manager_plugin->settings,
+	anjuta_preferences_add_from_builder (prefs, bxml, snippets_manager_plugin->settings, NULL,
 	                                     SNIPPETS_MANAGER_PREFERENCES_ROOT, _("Code Snippets"),
 	                                     ICON_FILE);
 
