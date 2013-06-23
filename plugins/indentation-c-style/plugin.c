@@ -242,6 +242,22 @@ register_stock_icons (AnjutaPlugin *plugin)
     END_REGISTER_ICON;
 }
 
+static void
+indent_c_plugin_load_session (AnjutaPlugin *plugin, AnjutaSessionPhase phase,
+                              AnjutaSession *session)
+{
+    IndentCPlugin *lang_plugin = ANJUTA_PLUGIN_INDENT_C (plugin);
+
+    if (phase != ANJUTA_SESSION_PHASE_NORMAL)
+        return;
+
+    g_clear_object (&lang_plugin->session_settings);
+    g_clear_object (&lang_plugin->editor_settings);
+
+    lang_plugin->session_settings = anjuta_session_create_settings (session, "indent-c");
+    lang_plugin->editor_settings = anjuta_session_create_settings (session, IANJUTA_EDITOR_PREF_SCHEMA);
+}
+
 static gboolean
 indent_c_plugin_activate_plugin (AnjutaPlugin *plugin)
 {
@@ -313,6 +329,7 @@ indent_c_plugin_dispose (GObject *obj)
     /* Disposition codes */
 
     g_object_unref (plugin->settings);
+    g_object_unref (plugin->session_settings);
     g_object_unref (plugin->editor_settings);
 
     G_OBJECT_CLASS (parent_class)->dispose (obj);
@@ -327,7 +344,6 @@ indent_c_plugin_instance_init (GObject *obj)
     plugin->editor_watch_id = 0;
     plugin->uiid = 0;
     plugin->settings = g_settings_new (PREF_SCHEMA);
-    plugin->editor_settings = g_settings_new (ANJUTA_PREF_SCHEMA_PREFIX IANJUTA_EDITOR_PREF_SCHEMA);
 }
 
 static void
@@ -339,6 +355,7 @@ indent_c_plugin_class_init (GObjectClass *klass)
 
     plugin_class->activate = indent_c_plugin_activate_plugin;
     plugin_class->deactivate = indent_c_plugin_deactivate_plugin;
+    plugin_class->load_session = indent_c_plugin_load_session;
     klass->finalize = indent_c_plugin_finalize;
     klass->dispose = indent_c_plugin_dispose;
 }
@@ -358,7 +375,7 @@ ipreferences_merge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
         g_error_free (error);
     }
     anjuta_preferences_add_from_builder (prefs,
-                                         plugin->bxml, plugin->settings, NULL,
+                                         plugin->bxml, plugin->settings, plugin->session_settings,
                                          "preferences", _("Indentation"),
                                          ICON_FILE);
 }

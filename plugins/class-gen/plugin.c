@@ -422,6 +422,7 @@ cg_plugin_window_response_cb (G_GNUC_UNUSED GtkDialog *dialog,
 
 		if (result == TRUE)
 		{
+			AnjutaSession *session;
 			GSettings *settings;
 			gboolean flag;
 			gint i;
@@ -446,7 +447,8 @@ cg_plugin_window_response_cb (G_GNUC_UNUSED GtkDialog *dialog,
 
 			/* Set indentation settings */
 			/* Add use-tabs property */
-			settings = g_settings_new (ANJUTA_PREF_SCHEMA_PREFIX IANJUTA_EDITOR_PREF_SCHEMA);
+			session = anjuta_shell_get_session (ANJUTA_PLUGIN (plugin)->shell);
+			settings = anjuta_session_create_settings (session, IANJUTA_EDITOR_PREF_SCHEMA);
 			flag = g_settings_get_boolean (settings, IANJUTA_EDITOR_USE_TABS_KEY);
 			g_hash_table_insert (values, USE_TABS_PROPERTY, g_strdup (flag ? "1" : "0"));
 

@@ -43,6 +43,7 @@ struct _IndentCPlugin {
 	gint uiid;
 
 	GSettings* settings;
+	GSettings* session_settings;
 	GSettings* editor_settings;
 	gint editor_watch_id;
 	GObject *current_editor;

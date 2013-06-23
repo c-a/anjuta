@@ -48,7 +48,7 @@
 #define BRACE_INDENT \
 	(plugin->param_brace_indentation >= 0? \
 		plugin->param_brace_indentation : \
-		g_settings_get_int (plugin->settings, PREF_INDENT_BRACE_SIZE))
+		g_settings_get_int (plugin->session_settings, PREF_INDENT_BRACE_SIZE))
 
 #define CASE_INDENT (INDENT_SIZE)
 #define LABEL_INDENT (INDENT_SIZE)
@@ -226,7 +226,7 @@ get_line_indentation_string (IndentCPlugin *plugin, IAnjutaEditor *editor, gint 
 	{
 		gint num_tabs, num_spaces;
 
-		if (g_settings_get_boolean (plugin->settings, PREF_INDENT_PARENTHESIS_ONLY_SPACES))
+		if (g_settings_get_boolean (plugin->session_settings, PREF_INDENT_PARENTHESIS_ONLY_SPACES))
 		{
 			num_tabs = indentation / TAB_SIZE;
 			num_spaces = indentation % TAB_SIZE;
@@ -745,7 +745,7 @@ get_line_indentation_base (IndentCPlugin *plugin,
 							 * only if it does not already exist there. The purpose of this fix is to avoid
 							 * extra " * " on auto-indent. */
 
-							if ((g_settings_get_boolean (plugin->settings, PREF_COMMENT_LEADING_ASTERISK)) &&
+							if ((g_settings_get_boolean (plugin->session_settings, PREF_COMMENT_LEADING_ASTERISK)) &&
 								(ianjuta_iterable_compare (line_end, line_begin, NULL)) == 0)
 							{
 								ianjuta_editor_insert (editor, line_begin, comment_continued, -1, NULL);
@@ -864,7 +864,7 @@ get_line_indentation_base (IndentCPlugin *plugin,
 		else if (point_ch == '(' || point_ch == '[')
 		{
 			line_indent = 0;
-			if (g_settings_get_boolean (plugin->settings,
+			if (g_settings_get_boolean (plugin->session_settings,
 			                            PREF_INDENT_PARENTHESIS_LINEUP))
 			{
 				while (ianjuta_iterable_previous (iter, NULL))
@@ -891,7 +891,7 @@ get_line_indentation_base (IndentCPlugin *plugin,
 				line_indent = get_line_indentation (editor, line_for_indent);
 				line_indent += extra_indent;
 
-				(*parenthesis_indentation) += g_settings_get_int (plugin->settings,
+				(*parenthesis_indentation) += g_settings_get_int (plugin->session_settings,
 				                                             PREF_INDENT_PARENTHESIS_SIZE);
 			}
 
@@ -1285,7 +1285,7 @@ cpp_java_indentation_char_added (IAnjutaEditor *editor,
 		}
 	}
 
-	if (g_settings_get_boolean (plugin->settings, PREF_BRACE_AUTOCOMPLETION))
+	if (g_settings_get_boolean (plugin->session_settings, PREF_BRACE_AUTOCOMPLETION))
 	{
 		if (ch == '[' || ch == '(')
 		            {

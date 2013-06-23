@@ -225,16 +225,56 @@ init_fonts(Sourceview* sv)
 	on_notify_font_theme (sv->priv->settings, FONT_THEME, sv);
 }
 
+static void
+source_view_prefs_load_session(Sourceview* sv, AnjutaSession* session)
+{
+    g_clear_object (&sv->priv->editor_settings);
+
+    sv->priv->editor_settings = anjuta_session_create_settings (session, IANJUTA_EDITOR_PREF_SCHEMA);
+
+	/* Bind simple options to GSettings */
+	g_settings_bind (sv->priv->editor_settings, IANJUTA_EDITOR_TAB_WIDTH_KEY,
+	                 sv->priv->view, "tab-width",
+	                 G_SETTINGS_BIND_GET);
+	g_settings_bind (sv->priv->editor_settings, IANJUTA_EDITOR_INDENT_WIDTH_KEY,
+	                 sv->priv->view, "indent-width",
+	                 G_SETTINGS_BIND_GET);
+
+	/* Register notifications */
+	REGISTER_NOTIFY (sv->priv->editor_settings, IANJUTA_EDITOR_USE_TABS_KEY, on_notify_use_tab_for_indentation);
+
+	/* Init non-simple options */
+	gtk_source_view_set_indent_width(GTK_SOURCE_VIEW(sv->priv->view),
+	                                 g_settings_get_int (sv->priv->editor_settings, IANJUTA_EDITOR_INDENT_WIDTH_KEY));
+	gtk_source_view_set_tab_width(GTK_SOURCE_VIEW(sv->priv->view),
+	                              g_settings_get_int (sv->priv->editor_settings, IANJUTA_EDITOR_TAB_WIDTH_KEY));
+	gtk_source_view_set_insert_spaces_instead_of_tabs(GTK_SOURCE_VIEW(sv->priv->view),
+	                                                  !g_settings_get_boolean (sv->priv->editor_settings, IANJUTA_EDITOR_USE_TABS_KEY));
+}
+
+static void
+on_load_session(AnjutaPlugin* plugin, AnjutaSessionPhase phase,
+                AnjutaSession* session, gpointer user_data)
+{
+    Sourceview* sv = ANJUTA_SOURCEVIEW(user_data);
+
+	if (phase != ANJUTA_SESSION_PHASE_NORMAL)
+		return;
+
+	source_view_prefs_load_session (sv, session);
+}
+
 void
 sourceview_prefs_init(Sourceview* sv)
 {
 	GtkSourceDrawSpacesFlags flags = 0;
+	AnjutaSession* session;
+
 	/* We create a new GSettings object here because if we used the one from
 	 * the editor might be destroyed while the plugin is still alive
 	 */
 	sv->priv->settings = g_settings_new (PREF_SCHEMA);
 	sv->priv->msgman_settings = g_settings_new (MSGMAN_PREF_SCHEMA);
-	sv->priv->editor_settings = g_settings_new (ANJUTA_PREF_SCHEMA_PREFIX IANJUTA_EDITOR_PREF_SCHEMA);
 
 	/* Bind simple options to GSettings */
 	g_settings_bind (sv->priv->settings, HIGHLIGHT_SYNTAX,
@@ -242,12 +282,6 @@ sourceview_prefs_init(Sourceview* sv)
 			 G_SETTINGS_BIND_GET);
 	g_settings_bind (sv->priv->settings, HIGHLIGHT_CURRENT_LINE,
 			 sv->priv->view, "highlight-current-line",
-			 G_SETTINGS_BIND_GET);
-	g_settings_bind (sv->priv->editor_settings, IANJUTA_EDITOR_TAB_WIDTH_KEY,
-			 sv->priv->view, "tab-width",
-			 G_SETTINGS_BIND_GET);
-	g_settings_bind (sv->priv->editor_settings, IANJUTA_EDITOR_INDENT_WIDTH_KEY,
-			 sv->priv->view, "indent-width",
 			 G_SETTINGS_BIND_GET);
 	g_settings_bind (sv->priv->settings, HIGHLIGHT_BRACKETS,
 			 sv->priv->document, "highlight-matching-brackets",
@@ -270,13 +304,6 @@ sourceview_prefs_init(Sourceview* sv)
 			 G_SETTINGS_BIND_GET);
 
 	/* Init non-simple options */
-	gtk_source_view_set_indent_width(GTK_SOURCE_VIEW(sv->priv->view),
-	                                 g_settings_get_int (sv->priv->editor_settings, IANJUTA_EDITOR_INDENT_WIDTH_KEY));
-	gtk_source_view_set_tab_width(GTK_SOURCE_VIEW(sv->priv->view),
-	                                 g_settings_get_int (sv->priv->editor_settings, IANJUTA_EDITOR_TAB_WIDTH_KEY));
-	gtk_source_view_set_insert_spaces_instead_of_tabs(GTK_SOURCE_VIEW(sv->priv->view),
-	                                                  !g_settings_get_boolean (sv->priv->editor_settings, IANJUTA_EDITOR_USE_TABS_KEY));
-
 	gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (sv->priv->view),
 	                             g_settings_get_boolean (sv->priv->settings, VIEW_EOL) ? GTK_WRAP_WORD : GTK_WRAP_NONE);
 
@@ -294,8 +321,6 @@ sourceview_prefs_init(Sourceview* sv)
 	on_notify_autocompletion(sv->priv->settings, AUTOCOMPLETION, sv);
 
 	/* Register notifications */
-	REGISTER_NOTIFY (sv->priv->editor_settings, IANJUTA_EDITOR_USE_TABS_KEY, on_notify_use_tab_for_indentation);
-
 	REGISTER_NOTIFY (sv->priv->settings, AUTOCOMPLETION, on_notify_autocompletion);
 	REGISTER_NOTIFY (sv->priv->settings, VIEW_WHITE_SPACES, on_notify_view_spaces);
 	REGISTER_NOTIFY (sv->priv->settings, VIEW_EOL, on_notify_view_eol);
@@ -309,6 +334,14 @@ sourceview_prefs_init(Sourceview* sv)
 	                  G_CALLBACK (on_notify_indic_colors), sv);
 	g_signal_connect (sv->priv->msgman_settings, "changed::" MSGMAN_COLOR_IMPORTANT,
 	                  G_CALLBACK (on_notify_indic_colors), sv);
+
+	/* Load session settings if we have a session already */
+	session = anjuta_shell_get_session (sv->priv->plugin->shell);
+	if (session)
+		source_view_prefs_load_session (sv, session);
+
+	g_signal_connect_object (sv->priv->plugin, "load-session",
+	                         G_CALLBACK (on_load_session), sv, 0);
 }
 
 void sourceview_prefs_destroy(Sourceview* sv)
